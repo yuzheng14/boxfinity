@@ -92,7 +92,7 @@ npm ci
 PORT=4175 npm run dev
 ```
 
-各会话选择不同端口，通过 PR 合入 main。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
+各会话选择不同端口，通过 PR 交付变更，由仓库所有者人工合入 main。代理完成检查与审查说明后交付 PR 链接，合并由仓库所有者操作。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
 
 ## 许可证
 
