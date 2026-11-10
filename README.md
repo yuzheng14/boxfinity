@@ -2,18 +2,18 @@
 
 本地运行的柜内抽拉收纳设计原型：根据柜内宽、高推荐单元尺寸，在柜子正面网格上画出不同尺寸的盒子，预览开放框套与盒子的组合，再导出 3MF。
 
-纯静态网站，3D 渲染使用经批准引入的 `three@^0.187.0`（MIT，含同包 OrbitControls），无其他运行时或构建依赖。Three.js 资源随站点本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
+纯静态网站，3D 渲染使用经批准引入的 `three@^0.187.0`（MIT，含同包 OrbitControls），构建使用已批准的 `vite@^8.3.7`。Three.js 随 Vite 产物本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
 
 ## 运行
 
-需要现有的 Node.js 22 或更新版本。首次运行先安装锁文件中的依赖：
+需要现有的 Node.js 22.12 或更新版本。首次运行先安装锁文件中的依赖：
 
 ```sh
 npm ci
 npm run dev
 ```
 
-打开 <http://localhost:4173>。开发服务会准备本地 Three.js 资源。构建部署版本运行 `npm run build`，再用任意静态 HTTP 服务托管 `dist/`；`npm run preview` 可本地检查构建结果。生成的站点使用相对路径，可部署到 GitHub Pages 的仓库子路径。ES 模块需要 HTTP，不要通过 `file://` 打开。
+打开 <http://127.0.0.1:4173/boxfinity/>。Vite 开发服务提供模块解析与热更新。构建部署版本运行 `npm run build`，再用任意静态 HTTP 服务托管 `dist/`；`npm run preview` 可本地检查构建结果。Vite 的 base 为 `/boxfinity/`，与 GitHub Pages 仓库子路径一致。ES 模块需要 HTTP，不要通过 `file://` 打开。
 
 ```sh
 npm test
@@ -71,8 +71,7 @@ npm test
 - `web/view-geometry.mjs`：将现有几何与打印方向转换为 Three.js BufferGeometry。
 - `web/app.mjs`：编辑状态、历史、指针操作、持久化与导入导出。
 - `web/index.html` / `web/style.css`：左右两栏工作台与响应式布局。
-- `scripts/serve.mjs`：仅使用 Node 标准库的本地静态服务。
-- `scripts/vendor.mjs` / `scripts/build.mjs`：复制所需 Three.js 文件和许可证，生成可静态部署的 `dist/`，无需构建工具依赖。
+- `vite.config.mjs`：开发/预览端口、GitHub Pages 子路径、生产打包及 Three.js 许可证输出。
 
 ## 自动检查与发布
 

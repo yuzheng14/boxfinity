@@ -2,11 +2,11 @@
 
 ## 项目与命令
 
-- 纯静态 ES 模块应用，Node.js >= 22。运行时依赖只有已批准的 `three@^0.187.0`，OrbitControls 来自同一个包。
+- Vite 构建的纯静态 ES 模块应用，Node.js >= 22.12。运行时依赖为已批准的 `three@^0.187.0`，OrbitControls 来自同一个包；构建依赖 `vite@^8.3.7` 及其正常传递依赖已获批准。
 - 引入或更新任何外部依赖、临时工具、CDN 或 CI Action 前，说明名称、版本、用途、取舍、替代方案及传递依赖，并取得人类明确批准。安装锁文件中已有依赖无需重复审批。
 - `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 验证；`npm run build` 生成 `dist/`；`npm run preview` 验证构建。
 - `web/vendor/`、`dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
-- 保留根目录 MIT LICENSE，以及构建输出中 Three.js 的 MIT 许可证。
+- 保留根目录 MIT LICENSE，以及构建输出中 Three.js 的 MIT 许可证（由 Vite 写入 `dist/vendor/three/LICENSE`）。
 - 已批准的官方 CI Actions：checkout@v7.0.1、setup-node@v7.1.0、configure-pages@v6.0.0、upload-pages-artifact@v5.0.0、deploy-pages@v5.0.1，以及它们的打包依赖和 upload-artifact@v7.0.0。完整提交 SHA 见 `.github/workflows/ci-pages.yml`。新增或升级仍须审批。
 - PR 只测试和构建，main 构建成功后自动发布 Pages；部署写权限只放在独立 deploy job，不使用 pull_request_target 执行 PR 代码。
 
