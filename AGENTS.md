@@ -7,6 +7,8 @@
 - `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 验证；`npm run build` 生成 `dist/`；`npm run preview` 验证构建。
 - `web/vendor/`、`dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
 - 保留根目录 MIT LICENSE，以及构建输出中 Three.js 的 MIT 许可证。
+- 已批准的官方 CI Actions：checkout@v7.0.1、setup-node@v7.1.0、configure-pages@v6.0.0、upload-pages-artifact@v5.0.0、deploy-pages@v5.0.1，以及它们的打包依赖和 upload-artifact@v7.0.0。完整提交 SHA 见 `.github/workflows/ci-pages.yml`。新增或升级仍须审批。
+- PR 只测试和构建，main 构建成功后自动发布 Pages；部署写权限只放在独立 deploy job，不使用 pull_request_target 执行 PR 代码。
 
 ## 多会话协作
 
