@@ -1,0 +1,25 @@
+{
+  "name": "boxfinity",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-local cabinet drawer grid designer with printable drawers and open sleeves.",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs --dist"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuzheng14/boxfinity.git"
+  },
+  "homepage": "https://yuzheng14.github.io/boxfinity/"
+}
