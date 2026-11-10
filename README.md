@@ -2,7 +2,7 @@
 
 本地运行的柜内抽拉收纳设计原型：根据柜内宽、高推荐单元尺寸，在柜子正面网格上画出不同尺寸的盒子，预览开放框套与盒子的组合，再导出 3MF。
 
-纯静态网站，3D 渲染使用经批准引入的 `three@^0.187.0`（MIT，含同包 OrbitControls），无其他运行时或构建依赖。Three.js 资源随站点本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。构建结果可部署到 GitHub Pages。
+纯静态网站，3D 渲染使用经批准引入的 `three@^0.187.0`（MIT，含同包 OrbitControls），无其他运行时或构建依赖。Three.js 资源随站点本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
 
 ## 运行
 
@@ -73,6 +73,12 @@ npm test
 - `web/index.html` / `web/style.css`：左右两栏工作台与响应式布局。
 - `scripts/serve.mjs`：仅使用 Node 标准库的本地静态服务。
 - `scripts/vendor.mjs` / `scripts/build.mjs`：复制所需 Three.js 文件和许可证，生成可静态部署的 `dist/`，无需构建工具依赖。
+
+## 自动检查与发布
+
+[CI and Pages](./.github/workflows/ci-pages.yml) 在 PR 和 main 提交时使用 Node.js 22 安装锁定依赖、运行测试并构建。PR 任务只有源码读取权限；main 构建成功后上传 `dist/`，由独立部署任务发布到 [GitHub Pages](https://yuzheng14.github.io/boxfinity/)。也可在 Actions 页面手动运行 main 的工作流。部署任务使用 `github-pages` 环境，仅它拥有 Pages 和 OIDC 写权限。
+
+首次配置仓库时，将 Settings → Pages → Build and deployment → Source 设为 **GitHub Actions**。工作流中官方 Actions 已获批准并固定到完整提交 SHA；版本升级仍需先审批。不要将生成的 `dist/` 或 `web/vendor/` 提交进源码分支。
 
 ## 多会话开发
 
