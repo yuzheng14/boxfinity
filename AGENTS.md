@@ -2,7 +2,7 @@
 
 ## 项目与命令
 
-- Vite 构建的纯静态 ES 模块应用，Node.js >= 22.12。运行时依赖为已批准的 `three@^0.187.0`，OrbitControls 来自同一个包；构建依赖 `vite@^8.3.7` 及其正常传递依赖已获批准。
+- Vite 构建的纯静态 ES 模块应用，Node.js >= 22.12。界面使用已批准的 `react@^19.3.1`、`react-dom@^19.3.1`；3D 使用 `three@^0.187.0` 及同包 OrbitControls；构建依赖为 `vite@^8.3.7`、`@vitejs/plugin-react@^6.3.0`。这些版本范围及正常传递依赖已获批准。
 - 引入或更新任何外部依赖、临时工具、CDN 或 CI Action 前，说明名称、版本、用途、取舍、替代方案及传递依赖，并取得人类明确批准。安装锁文件中已有依赖无需重复审批。
 - `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 验证；`npm run build` 生成 `dist/`；`npm run preview` 验证构建。
 - `dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
@@ -19,6 +19,13 @@
 - 各 worktree 单独安装锁定依赖，可用 `npm run dev -- --port 5175` 指定端口；默认端口占用时 Vite 自动顺延。不要停止其他会话的服务。
 - 通过 PR 合入 main，不覆盖远端历史。相互独立的任务分别开 PR；存在依赖的多层 PR 按 GitHub 原生 Stacked PR 约定组织，明确各层增量与审查顺序。
 - PR 描述写清问题、变更范围、验证结果和具体 review 重点。UI 变更必须在对应 PR 评论中实际上传运行界面的截图，确认图片可见并提供评论链接；本地路径不算完成。
+
+## React 组件边界
+
+- `App.jsx` 组合应用；`use-editor.jsx` 处理表单草稿与持久化；`editor.mjs` 管理已验证设计、历史及选择。输入中的无效参数不得覆盖有效方案或 localStorage 草稿。
+- `components/` 分别负责参数、测量浮层、盒子列表、三维视口与弹窗。表单和列表由 React 渲染，不恢复全局 DOM 查询及手工替换。
+- `PreviewWorkspace.jsx` 通过 ref 管理 Three.js 实例。React 不管理其 canvas / SVG 标注子树；卸载时移除事件监听、断开 ResizeObserver、dispose OrbitControls 和渲染资源。保留 StrictMode 的重复挂载检查。
+- 保持 v2 方案文件和 `boxfinity.cabinet.v2` 草稿兼容。框架迁移不改变几何、打印方向或 3MF 坐标。
 
 ## 模型与交互边界
 

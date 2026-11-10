@@ -2,7 +2,7 @@
 
 本地运行的柜内抽拉收纳设计原型：根据柜内宽、高推荐单元尺寸，在柜子正面网格上画出不同尺寸的盒子，预览开放框套与盒子的组合，再导出 3MF。
 
-纯静态网站，3D 渲染使用经批准引入的 `three@^0.187.0`（MIT，含同包 OrbitControls），构建使用已批准的 `vite@^8.3.7`。Three.js 随 Vite 产物本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
+纯静态 React 网站。UI 使用已批准的 `react@^19.3.1`、`react-dom@^19.3.1`；3D 使用 `three@^0.187.0`（含同包 OrbitControls）；构建使用 `vite@^8.3.7` 和 `@vitejs/plugin-react@^6.3.0`。Three.js 随 Vite 产物本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
 
 ## 运行
 
@@ -71,9 +71,12 @@ npm test
 - `src/view-camera.mjs`：透视/正交取景、标注投影和网格射线拾取。
 - `src/view-input.mjs`：区分双指滑动旋转与捏合缩放，统一处理像素、行与页单位。
 - `src/view-geometry.mjs`：将现有几何与打印方向转换为 Three.js BufferGeometry。
-- `src/app.mjs`：编辑状态、历史、指针操作、持久化与导入导出。
-- `index.html` / `src/style.css`：左右两栏工作台与响应式布局。
-- `vite.config.mjs`：GitHub Pages 子路径与第三方许可证输出，其余使用 Vite 默认配置。
+- `src/main.jsx` / `src/App.jsx`：React 入口与应用组合，连接导入、导出及全局快捷键。
+- `src/editor.mjs` / `src/use-editor.jsx`：有效设计、输入草稿、撤销/重做、选择和 localStorage 持久化；无效输入保留最近的有效方案。
+- `src/components/`：参数面板、测量浮层、盒子列表、三维视口、帮助与导出弹窗。
+- `src/components/PreviewWorkspace.jsx`：Three.js 与 React 的边界，指针/滚轮交互及卸载清理。
+- `index.html` / `src/style.css`：页面入口、左右两栏样式与响应式布局。
+- `vite.config.mjs`：GitHub Pages 子路径、React 插件与第三方许可证输出，其余使用 Vite 默认配置。
 
 ## 自动检查与发布
 
@@ -97,4 +100,4 @@ npm run dev -- --port 5175
 
 ## 许可证
 
-项目使用 [MIT](./LICENSE)。Three.js 同为 MIT 协议。Vite 内置的许可证生成将打包依赖的声明写入 `dist/THIRD_PARTY_LICENSES.md`，随静态产物一起发布。
+项目使用 [MIT](./LICENSE)。Three.js、React、React DOM 和 Scheduler 的许可证由 Vite 内置功能写入 `dist/THIRD_PARTY_LICENSES.md`，随静态产物一起发布。

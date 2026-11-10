@@ -90,6 +90,13 @@ export class CabinetPreview {
     this.content.traverse((object)=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});
     this.content.clear();for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();
   }
+  dispose(){
+    this.observer.disconnect();
+    for(const controls of this.orbits.values())controls.dispose();
+    this.disposeContent();
+    this.renderer.dispose();
+    this.overlay.replaceChildren();
+  }
   addLines(segments,color,opacity=1){
     const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(segments.flat(2),3));
     const material=new LineBasicMaterial({color,transparent:opacity<1,opacity,depthWrite:false});
