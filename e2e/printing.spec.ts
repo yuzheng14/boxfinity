@@ -43,7 +43,7 @@ test('warning-only layouts download real plate 3MF and a complete printable kit'
   await expect(page.getByRole('dialog', { name: '导出打印文件', exact: true })).toBeVisible();
   await expect(page.locator('#export-orientation-note')).toContainText('可能需要支撑');
   const bundleEvent = page.waitForEvent('download');
-  await page.getByRole('button', { name: '下载整套 ZIP', exact: true }).click();
+  await page.getByRole('button', { name: '下载 ZIP（含单盘文件与装配清单）', exact: true }).click();
   const files = readZip(await downloadBytes(await bundleEvent));
   const manifest = readJSON(entry(files, 'assembly.json'));
   expect(records(manifest.boxes)).toHaveLength(1);
@@ -84,4 +84,61 @@ test('truly oversized parts block export and become recoverable when dimensions 
   await expect(page.getByRole('button', { name: '导出 3MF', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: '打印盘', exact: true })).toBeEnabled();
   await expect(page.locator('#box-count')).toHaveText('1');
+});
+
+test('all plates download as one 3MF project and remain available inside the ZIP', async ({
+  app: page,
+}, testInfo) => {
+  await page.getByRole('button', { name: '示例布局', exact: true }).click();
+  await page.getByRole('button', { name: '导出 3MF', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '导出打印文件', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#export-summary')).toContainText('6 盘');
+  const screenshot = testInfo.outputPath('multi-plate-export.png');
+  await page.screenshot({ path: screenshot });
+  await testInfo.attach('multi-plate-export', { path: screenshot, contentType: 'image/png' });
+  const projectEvent = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: '下载整套 3MF', exact: true }).click();
+  const downloaded = await projectEvent;
+  expect(downloaded.suggestedFilename()).toBe('boxfinity-cabinet-600x420.3mf');
+  const bytes = await downloadBytes(downloaded),
+    files = readZip(bytes);
+  const config = new TextDecoder().decode(entry(files, 'Metadata/model_settings.config'));
+  expect(config.match(/<plate>/g)).toHaveLength(6);
+  expect(config.match(/<model_instance>/g)).toHaveLength(12);
+  const manifest = readJSON(entry(files, 'Metadata/assembly.json'));
+  expect(records(manifest.plates).flatMap((plate) => array(plate.parts))).toHaveLength(12);
+  const bundleEvent = page.waitForEvent('download');
+  await dialog
+    .getByRole('button', { name: '下载 ZIP（含单盘文件与装配清单）', exact: true })
+    .click();
+  const bundle = readZip(await downloadBytes(await bundleEvent));
+  expect(entry(bundle, 'boxfinity.3mf')).toEqual(bytes);
+  expect(readJSON(entry(bundle, 'assembly.json'))).toEqual(manifest);
+});
+
+test('layouts above the project plate limit keep their single-plate ZIP download', async ({
+  app: page,
+}, testInfo) => {
+  await setNumber(page, 'X', '180');
+  await setNumber(page, 'Y', '180');
+  await page.getByRole('button', { name: '填满空格', exact: true }).click();
+  await page.getByRole('button', { name: '导出 3MF', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '导出打印文件', exact: true });
+  await expect(dialog.getByRole('button', { name: '下载整套 3MF', exact: true })).toBeDisabled();
+  await expect(dialog).toContainText('多盘项目最多 36 盘');
+  const screenshot = testInfo.outputPath('over-limit-export.png');
+  await page.screenshot({ path: screenshot });
+  await testInfo.attach('over-limit-export', { path: screenshot, contentType: 'image/png' });
+  const bundleEvent = page.waitForEvent('download');
+  await dialog
+    .getByRole('button', { name: '下载 ZIP（含单盘文件与装配清单）', exact: true })
+    .click();
+  const files = readZip(await downloadBytes(await bundleEvent));
+  const manifest = readJSON(entry(files, 'assembly.json')),
+    plates = records(manifest.plates);
+  expect(plates.length).toBeGreaterThan(36);
+  expect(manifest.projectFile).toBeUndefined();
+  expect(files.has('boxfinity.3mf')).toBe(false);
+  for (const plate of plates) expect(files.has(String(plate.file))).toBe(true);
 });

@@ -11,7 +11,7 @@ import {
   exampleLayout,
 } from '../src/layout.ts';
 import { partMesh, meshVolume } from '../src/geometry.ts';
-import { modelXML, plate3MF, printBundle } from '../src/export.ts';
+import { modelXML, plate3MF, project3MF, printBundle } from '../src/export.ts';
 import { crc32 } from '../src/zip.ts';
 const near = (a: number, b: number, tolerance = 1e-3) =>
   assert.ok(Math.abs(a - b) < tolerance, `${a} ≈ ${b}`);
@@ -235,6 +235,16 @@ test('print kit includes every drawer and frame and a versioned front-grid assem
     files = readZip(printBundle(r)),
     manifest = readJSON(entry(files, 'assembly.json'));
   assert.equal(manifest.version, 2);
+  assert.equal(manifest.projectFile, 'boxfinity.3mf');
+  const projectBytes = entry(files, String(manifest.projectFile));
+  assert.deepEqual(projectBytes, project3MF(r));
+  const project = readZip(projectBytes);
+  assert.equal(project.size, 6);
+  assert.match(
+    new TextDecoder().decode(entry(project, '[Content_Types].xml')),
+    /<Override PartName="\/Metadata\/project_settings.config" ContentType="application\/json"\/>/,
+  );
+  assert.deepEqual(readJSON(entry(project, 'Metadata/assembly.json')), manifest);
   assert.equal(records(manifest.boxes).length, 4);
   assert.equal(typeof manifest.gridAxes, 'string');
   assert.match(String(manifest.gridAxes), /cabinet height/);

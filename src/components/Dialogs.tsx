@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { DesignResult, Plate } from '../types.ts';
 import { useEffect, useRef } from 'react';
+import { MAX_PROJECT_PLATES } from '../export.ts';
 import { Icon } from './Icons.tsx';
 
 function Dialog({
@@ -67,11 +68,13 @@ export function ExportDialog({
   result,
   onClose,
   onPlate,
+  onProject,
   onBundle,
 }: {
   result: DesignResult | null;
   onClose: () => void;
   onPlate: (plate: Plate) => void;
+  onProject: (result: DesignResult) => void;
   onBundle: (result: DesignResult) => void;
 }) {
   const notices: string[] = [];
@@ -94,6 +97,20 @@ export function ExportDialog({
           <p id="export-summary">
             {result.boxes.length} 只盒子 + {result.boxes.length} 个开放框套，共{' '}
             {result.plates.length} 盘。
+          </p>
+          <button
+            id="project-button"
+            className="button primary bundle-button"
+            disabled={result.plates.length > MAX_PROJECT_PLATES}
+            onClick={() => onProject(result)}
+          >
+            <Icon name="download" />
+            下载整套 3MF
+          </button>
+          <p>
+            {result.plates.length > MAX_PROJECT_PLATES
+              ? `多盘项目最多 ${MAX_PROJECT_PLATES} 盘，请下载 ZIP 或单盘文件。`
+              : '在 Bambu Studio / OrcaSlicer 中作为项目打开。切片前选择实际打印机、喷嘴与耗材。'}
           </p>
           <div id="export-plates" className="export-plates">
             {result.plates.map((plate) => (
@@ -125,11 +142,11 @@ export function ExportDialog({
           </p>
           <button
             id="bundle-button"
-            className="button primary bundle-button"
+            className="button secondary bundle-button"
             onClick={() => onBundle(result)}
           >
             <Icon name="download" />
-            下载整套 ZIP
+            下载 ZIP（含单盘文件与装配清单）
           </button>
         </>
       )}
