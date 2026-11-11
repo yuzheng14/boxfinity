@@ -74,6 +74,8 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .measurement-axes dt { flex-shrink:0; font-weight:550; color:#65665f; }
 .measurement-axes dd { margin:0; color:#7d8079; }
 .measurement-help > p { margin:15px 0 0; padding-top:13px; border-top:1px solid #eeeee9; color:#8b8d84; font-size:10px; line-height:1.8; }
+.printer-preset { display:block; width:100%; min-width:0; height:35px; margin:0 0 14px; padding:0 10px; border:1px solid #dededb; border-radius:5px; background:#fff; color:#4d5052; font-family:inherit; font-size:11px; cursor:pointer; }
+.printer-preset:focus-visible { outline:2px solid #aa8a6360; outline-offset:2px; }
 .printer-extra { margin-top:16px; padding-top:13px; border-top:1px solid #eeeee9; }
 .printer-extra summary { display:flex; align-items:center; gap:8px; cursor:pointer; list-style:none; color:#898c87; font-size:10px; }
 .printer-extra summary::-webkit-details-marker { display:none; }

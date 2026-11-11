@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { PRINTER_PRESETS, printerPreset } from '../src/printers.ts';
 import { DEFAULTS } from '../src/core.ts';
 import { applyDraft, createEditor, editorReducer, readSavedDocument, serializeDocument, settingsDraft } from '../src/editor.ts';
 
@@ -78,4 +79,73 @@ test('overlapping placements and invalid imported documents leave the current de
   assert.deepEqual(loaded.document, initial.document);
   assert.equal(loaded.selected, null);
   assert.deepEqual(loaded.draft, settingsDraft(initial.document.settings));
+});
+
+const choosePrinter = (state, id) => editorReducer(state, { type: 'printer-preset', id });
+
+test('printer presets update all axes together while preserving the cabinet, layout and margin', () => {
+  const initial = place(createEditor({ settings: { ...DEFAULTS, margin: 3 }, placements: [] }));
+  for (const preset of PRINTER_PRESETS) {
+    const next = choosePrinter(initial, preset.id);
+    assert.equal(next.error, null, preset.id);
+    assert.deepEqual(next.document.settings, { ...initial.document.settings, ...preset.volume });
+    assert.deepEqual(next.document.placements, initial.document.placements);
+    assert.deepEqual(next.draft, settingsDraft(next.document.settings));
+    assert.equal(next.document.printerPresetId, preset.id);
+    assert.deepEqual(next.result.parts[0].print.available, [preset.volume.bedWidth, preset.volume.bedDepth, preset.volume.bedHeight]);
+    assert.equal(next.past.length, initial.past.length + 1);
+    assert.deepEqual(editorReducer(next, { type: 'undo' }).document, initial.document);
+    assert.deepEqual(editorReducer(editorReducer(next, { type: 'undo' }), { type: 'redo' }).document, next.document);
+  }
+});
+
+test('printer identity survives equal-volume models, grid changes and version 2 persistence', () => {
+  const initial = choosePrinter(createEditor(), 'bambu-a1');
+  const next = choosePrinter(initial, 'bambu-p1s');
+  assert.deepEqual(next.document.settings, initial.document.settings);
+  assert.equal(next.document.printerPresetId, 'bambu-p1s');
+  const restored = createEditor(readSavedDocument(JSON.parse(serializeDocument(next.document))));
+  assert.deepEqual(restored.document, next.document);
+  const grid = editorReducer(restored, { type: 'preset', cols: 11, rows: 8 });
+  assert.equal(grid.document.printerPresetId, 'bambu-p1s');
+  assert.equal(editorReducer(next, { type: 'undo' }).document.printerPresetId, 'bambu-a1');
+});
+
+test('editing an axis switches to custom and undo restores the selected printer', () => {
+  const initial = choosePrinter(place(createEditor()), 'snapmaker-u1');
+  const custom = editorReducer(initial, { type: 'apply-settings', values: { ...initial.draft, bedWidth: '271.5' } });
+  assert.equal(custom.document.printerPresetId, undefined);
+  assert.equal(custom.document.settings.bedWidth, 271.5);
+  assert.deepEqual(custom.document.placements, initial.document.placements);
+  assert.deepEqual(editorReducer(custom, { type: 'undo' }).document, initial.document);
+  const explicit = choosePrinter(initial, '');
+  assert.equal(explicit.document.printerPresetId, undefined);
+  assert.deepEqual(explicit.document.settings, initial.document.settings);
+});
+
+test('choosing a printer repairs invalid printer inputs without committing unrelated invalid input', () => {
+  const initial = place(createEditor());
+  const invalidBed = editorReducer(initial, { type: 'apply-settings', values: { ...initial.draft, bedWidth: '' } });
+  const repaired = choosePrinter(invalidBed, 'flashforge-ad5x');
+  assert.equal(repaired.error, null);
+  assert.equal(repaired.draft.bedWidth, '220');
+  assert.equal(repaired.draft.bedHeight, '220');
+  const invalidCabinet = editorReducer(initial, { type: 'apply-settings', values: { ...initial.draft, width: '' } });
+  const rejected = choosePrinter(invalidCabinet, 'snapmaker-u1');
+  assert.equal(rejected.error.field, 'width');
+  assert.equal(rejected.document, initial.document);
+  assert.equal(rejected.draft.width, '');
+  assert.equal(choosePrinter(initial, 'unknown-printer'), initial);
+});
+
+test('old drafts keep their exact dimensions and stale preset metadata never overrides them', () => {
+  const old = { app: 'boxfinity', version: 2, settings: { ...DEFAULTS, bedWidth: 330, bedDepth: 320, bedHeight: 325 }, placements: [] };
+  for (const printerPresetId of [undefined, 'unknown', 'bambu-h2c-right', { id: 'snapmaker-u1' }]) {
+    const restored = readSavedDocument({ ...old, printerPresetId });
+    assert.deepEqual(restored.settings, old.settings);
+    assert.equal(restored.printerPresetId, undefined);
+  }
+  assert.equal(new Set(PRINTER_PRESETS.map((preset) => preset.id)).size, PRINTER_PRESETS.length);
+  assert.deepEqual(printerPreset('bambu-h2c-right').volume, { bedWidth: 305, bedDepth: 320, bedHeight: 325 });
+  assert.deepEqual(printerPreset('snapmaker-artisan-dual').volume, { bedWidth: 350, bedDepth: 400, bedHeight: 400 });
 });

@@ -5,6 +5,7 @@ import type { EditorControls } from '../use-editor.ts';
 import { useMemo } from 'react';
 import { display, recommendGrids } from '../core.ts';
 import { preferredPrintVolume } from '../printing.ts';
+import { PRINTER_BRANDS, printerPreset, matchesPrinterVolume } from '../printers.ts';
 import { MeasurementHelp } from './MeasurementHelp.tsx';
 import { Icon } from './Icons.tsx';
 
@@ -39,6 +40,8 @@ function NumberField({ field, draft, error, onChange, onApply }: NumberFieldProp
 }
 export function Parameters({ editor, draft, changeField, applyNow, run, sidebarRef, scrollRef }: ParametersProps) {
   const { result, error } = editor, { cfg, grid } = result;
+  const selectedPrinter = printerPreset(editor.document.printerPresetId);
+  const printerId = selectedPrinter && matchesPrinterVolume(draft, selectedPrinter.volume) ? selectedPrinter.id : '';
   const candidates = useMemo(() => recommendGrids(cfg), [cfg]);
   const field = (entry: Field) => <NumberField key={entry[0]} field={entry} draft={draft} error={error} onChange={changeField} onApply={applyNow} />;
   return <form id="settings-form" noValidate onSubmit={(event) => { event.preventDefault(); applyNow(); }}>
@@ -48,6 +51,15 @@ export function Parameters({ editor, draft, changeField, applyNow, run, sidebarR
     </section>
     <section className="parameter-section">
       <h2>最大打印范围 <span>mm</span></h2>
+      <select className="printer-preset" aria-label="打印机预设" value={printerId}
+        onChange={(event) => run({ type: 'printer-preset', id: event.target.value })}>
+        <option value="">自定义尺寸</option>
+        {PRINTER_BRANDS.map((brand) => <optgroup key={brand.name} label={brand.name}>
+          {brand.presets.map((preset) => <option key={preset.id} value={preset.id}>
+            {brand.name.split(' ')[0]} {preset.model}
+          </option>)}
+        </optgroup>)}
+      </select>
       <div className="fields three">{printerFields.map(field)}</div>
       <details id="printer-extra" className={`printer-extra${cfg.margin > 0 ? ' has-margin' : ''}`}>
         <summary>额外边距<span id="margin-summary">{display(cfg.margin)} mm</span><Icon name="plus" /></summary>
