@@ -25,6 +25,21 @@ npm run typecheck        # 源码与测试的严格类型检查
 
 单测使用已批准的 `vitest@^5.1.0`，测试文件为 `tests/*.test.ts`。保留现有几何、排盘、3MF、编辑状态及相机断言；使用 Node 环境运行，无需 DOM 或 GPU。相机测试调用真实 Three.js 相机和 OrbitControls，渲染器的 DOM/WebGL 集成由浏览器测试负责。运行测试不会替代类型检查。Node 测试 API 的类型由已批准的 `@types/node@^22.20.5` 提供。
 
+## 浏览器测试
+
+E2E 使用已批准的 `@playwright/test@^1.65.0`，首批运行 Chromium。首次安装或更新 Playwright 后，安装它配套的浏览器：
+
+```sh
+npx --no-install playwright install chromium
+npm run test:e2e
+```
+
+`test:e2e` 先执行严格类型检查和生产构建，再自动启动 `/boxfinity/` 子路径的独立预览服务，结束后关闭服务。默认端口为 4318；并行 worktree 可用 `BOXFINITY_E2E_PORT=4319 npm run test:e2e`。端口被占用会失败，不复用其他会话的服务。每个用例使用隔离的浏览器上下文，不读取或清空用户浏览器的草稿。
+
+覆盖真实 WebGL 输出、拖选与撤销/重做、预设与自定义参数、无效输入保留有效方案、JSON 下载/导入和刷新恢复、滚轮旋转与 Ctrl+滚轮缩放、warning 允许导出和真正超限阻止导出。下载验证会检查 ZIP/3MF 容器、CRC、模型内容、零件清单和打印方向，不仅检查按钮是否可点。单测继续验证精确几何和相机不变量；E2E 不代替触摸板硬件的手动体验检查。
+
+本地交互调试用 `npm run test:e2e:ui`。HTML 报告位于 `playwright-report/`，可通过 `npx --no-install playwright show-report` 查看；失败保留截图和 trace。CI 安装 Chromium 及 Linux 系统依赖，在 PR 和 main 中运行相同测试，并保存报告 7 天。报告和 `test-results/` 不提交到源码。
+
 ## 代码检查
 
 ```sh
@@ -99,7 +114,7 @@ Oxfmt 统一 TypeScript/TSX、CSS、HTML、配置和文档格式，源码沿用�
 
 ## 自动检查与发布
 
-[CI and Pages](./.github/workflows/ci-pages.yml) 在 PR 和 main 提交时使用 Node.js 22 安装锁定依赖、运行测试、严格类型检查并构建。PR 任务只有源码读取权限；main 构建成功后上传 `dist/`，由独立部署任务发布到 [GitHub Pages](https://yuzheng14.github.io/boxfinity/)。也可在 Actions 页面手动运行 main 的工作流。部署任务使用 `github-pages` 环境，仅它拥有 Pages 和 OIDC 写权限。
+[CI and Pages](./.github/workflows/ci-pages.yml) 在 PR 和 main 提交时使用 Node.js 22 安装锁定依赖、检查格式和 lint、运行 Vitest、严格检查源码与测试类型、构建并运行 Chromium E2E。PR 任务只有源码读取权限；main 构建成功后上传 `dist/`，由独立部署任务发布到 [GitHub Pages](https://yuzheng14.github.io/boxfinity/)。也可在 Actions 页面手动运行 main 的工作流。部署任务使用 `github-pages` 环境，仅它拥有 Pages 和 OIDC 写权限。
 
 首次配置仓库时，将 Settings → Pages → Build and deployment → Source 设为 **GitHub Actions**。工作流中官方 Actions 已获批准并固定到完整提交 SHA；版本升级仍需先审批。不要将生成的 `dist/` 提交进源码分支。
 

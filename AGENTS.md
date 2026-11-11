@@ -31,6 +31,9 @@
 
 - 已批准开发依赖 `vitest@^5.1.0`、`@types/node@^22.20.5` 及其正常传递依赖。单测放在 `tests/*.test.ts`，配置为 `vitest.config.ts`，采用 Node 环境和显式导入，不加载 DOM 模拟器。
 - `tsconfig.test.json` 继承严格检查，覆盖测试、辅助夹具和 Vitest 配置。迁移或新增测试必须同时通过运行和类型检查，不用 `any`、忽略指令或非空断言掩盖夹具问题；缺失值用实际断言缩小类型。
+- 已批准 `@playwright/test@^1.65.0` 及正常传递依赖、配套 Chromium/Headless Shell/FFmpeg 和 Linux CI 必需系统库；复用已批准的 upload-artifact@v7.0.0 保存报告。E2E 放在 `e2e/*.spec.ts`，使用 `playwright.config.ts`，也纳入 `tsconfig.test.json`。
+- `npm run test:e2e` 构建后自动启动、停止独立预览服务。默认端口 4318，可用 `BOXFINITY_E2E_PORT` 指定；不复用现有服务。保持默认的隔离浏览器上下文，不连接或清空用户浏览器数据。失败截图/trace 与 HTML 报告是生成内容，不提交。
+- 纯浏览器集成改动运行 E2E；交付前运行单测、lint、format:check、build，涉及浏览器测试的 PR 还要通过 test:e2e。CI 在 E2E 通过后才能部署 Pages。
 - 相机单测的原型夹具仅初始化相机相关属性，复用真实 Three.js/OrbitControls；完整 DOM/WebGL 初始化必须通过浏览器验证。
 
 ## TypeScript 与 React 组件边界
