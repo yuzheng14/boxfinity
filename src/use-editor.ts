@@ -37,7 +37,7 @@ export function useEditor() {
   }
   function run(action: EditorAction) {
     clearTimeout(pending.current);
-    if (['undo', 'redo', 'reset', 'load', 'select'].includes(action.type) || applyNow()) dispatch(action);
+    if (['undo', 'redo', 'reset', 'load', 'select', 'printer-preset'].includes(action.type) || applyNow()) dispatch(action);
   }
   return { editor, draft, changeField, applyNow, run };
 }

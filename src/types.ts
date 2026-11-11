@@ -59,5 +59,5 @@ export interface DesignResult {
   supportParts: DesignedPart[]; marginParts: DesignedPart[]; occupied: number;
   coverage: number; materialGrams: number; printable: boolean;
 }
-export interface DesignDocument { settings: Settings; placements: Placement[] }
+export interface DesignDocument { settings: Settings; placements: Placement[]; printerPresetId?: string }
 export interface MeshData { vertices: Vec3[]; triangles: [number, number, number][] }

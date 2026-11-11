@@ -4,7 +4,7 @@ import type { View, Tool, Viewport } from './view-types.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { design } from './core.ts';
 import { plate3MF, printBundle } from './export.ts';
-import { readSavedDocument, serializeDocument, errorDetails } from './editor.ts';
+import { readSavedDocument, serializeDocument, documentFromResult, errorDetails } from './editor.ts';
 import { download } from './download.ts';
 import { useEditor } from './use-editor.ts';
 import { Icons, Icon } from './components/Icons.tsx';
@@ -64,7 +64,7 @@ export default function App() {
   function saveDesign() {
     const result = applyNow();
     if (!result) return;
-    download(serializeDocument({ settings: result.cfg, placements: result.placements }), 'boxfinity-cabinet-design.json', 'application/json');
+    download(serializeDocument(documentFromResult(result, editor.document.printerPresetId)), 'boxfinity-cabinet-design.json', 'application/json');
     notify('柜体方案已保存');
   }
   async function importDesign(event: ChangeEvent<HTMLInputElement>) {

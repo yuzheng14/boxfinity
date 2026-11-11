@@ -1,6 +1,7 @@
 import type { Settings, SettingKey, SettingsDraft, DesignResult, DesignDocument, GridRectangle } from './types.ts';
 import { DEFAULTS, design, settings, DesignError } from './core.ts';
 import { addPlacement, fillEmpty, exampleLayout } from './layout.ts';
+import { printerPreset, matchesPrinterVolume } from './printers.ts';
 
 export interface EditorError { message: string; field?: SettingKey }
 export interface EditorState {
@@ -15,6 +16,7 @@ export type EditorAction =
   | { type: 'undo' | 'redo' | 'reset' | 'delete' | 'clear' | 'fill' | 'example' }
   | { type: 'load'; document: DesignDocument }
   | { type: 'preset'; cols: number; rows: number }
+  | { type: 'printer-preset'; id: string }
   | { type: 'place'; rect: GridRectangle };
 export type RunEditorAction = (action: EditorAction) => void;
 export function errorDetails(error: unknown): EditorError {
@@ -24,13 +26,18 @@ export function errorDetails(error: unknown): EditorError {
 
 export const STORAGE_KEY = 'boxfinity.cabinet.v2';
 export const settingsDraft = (cfg: Settings): SettingsDraft => Object.fromEntries(Object.entries(cfg).map(([key, value]) => [key, String(value)])) as SettingsDraft;
-const documentOf = (result: DesignResult): DesignDocument => ({ settings: result.cfg, placements: result.placements });
+export function documentFromResult(result: DesignResult, printerPresetId?: unknown): DesignDocument {
+  const preset = printerPreset(printerPresetId);
+  return { settings: result.cfg, placements: result.placements,
+    ...(preset && matchesPrinterVolume(result.cfg, preset.volume) ? { printerPresetId: preset.id } : {}),
+  };
+}
 
 export function readSavedDocument(value: unknown) {
   if (!value || typeof value !== 'object' || !('app' in value) || value.app !== 'boxfinity' || !('version' in value) || value.version !== 2 || !('settings' in value) || !value.settings || !('placements' in value) || !Array.isArray(value.placements)) {
     throw new Error('请选择新版柜内收纳方案 JSON');
   }
-  return documentOf(design(value.settings, value.placements));
+  return documentFromResult(design(value.settings, value.placements), 'printerPresetId' in value ? value.printerPresetId : undefined);
 }
 export function serializeDocument(document: DesignDocument) {
   return JSON.stringify({ app: 'boxfinity', version: 2, ...document }, null, 2);
@@ -42,10 +49,10 @@ export function applyDraft(document: DesignDocument, values: SettingsDraft) {
 }
 export function createEditor(document: DesignDocument = { settings: { ...DEFAULTS }, placements: [] }): EditorState {
   const result = design(document.settings, document.placements);
-  return { document: documentOf(result), result, selected: null, past: [], future: [], error: null, notice: null, draft: settingsDraft(result.cfg) };
+  return { document: documentFromResult(result, document.printerPresetId), result, selected: null, past: [], future: [], error: null, notice: null, draft: settingsDraft(result.cfg) };
 }
 function commit(state: EditorState, next: DesignDocument, { selected = state.selected, syncForm = false, message }: { selected?: number | null; syncForm?: boolean; message?: string | null } = {}): EditorState {
-  const result = design(next.settings, next.placements), document = documentOf(result);
+  const result = design(next.settings, next.placements), document = documentFromResult(result, next.printerPresetId);
   const changed = JSON.stringify(document) !== JSON.stringify(state.document);
   return {
     ...state, document: changed ? document : state.document, result: changed ? result : state.result,
@@ -76,14 +83,23 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     if (action.type === 'apply-settings') {
       const result = applyDraft(state.document, action.values);
       const changedGrid = result.cfg.cols !== state.document.settings.cols || result.cfg.rows !== state.document.settings.rows;
-      return commit(state, documentOf(result), { message: changedGrid ? '网格已更换，原布局可撤销恢复' : null });
+      return commit(state, documentFromResult(result, state.document.printerPresetId), { message: changedGrid ? '网格已更换，原布局可撤销恢复' : null });
     }
     if (action.type === 'load') return commit(state, action.document, { selected: null, syncForm: true, message: '柜体方案已导入' });
     if (action.type === 'reset') return commit(state, { settings: { ...DEFAULTS }, placements: [] }, { selected: null, syncForm: true, message: '已恢复默认，原方案可撤销' });
+    if (action.type === 'printer-preset') {
+      const preset = printerPreset(action.id);
+      if (action.id && !preset) return state;
+      // Patch all printer axes before validation so a preset can repair invalid XYZ.
+      const values = preset ? { ...state.draft, ...Object.fromEntries(Object.entries(preset.volume).map(([key, value]) => [key, String(value)])) } : state.draft;
+      const result = applyDraft(state.document, values);
+      const changedGrid = result.cfg.cols !== state.document.settings.cols || result.cfg.rows !== state.document.settings.rows;
+      return commit(state, documentFromResult(result, preset?.id), { syncForm: true, message: changedGrid ? '网格已更换，原布局可撤销恢复' : null });
+    }
     if (state.error) return state;
     if (action.type === 'preset') {
       if (state.document.settings.cols === action.cols && state.document.settings.rows === action.rows) return state;
-      return commit(state, { settings: { ...state.document.settings, cols: action.cols, rows: action.rows }, placements: [] }, { syncForm: true, message: '已应用预设行列，可在网格中绘制盒子；原布局可撤销' });
+      return commit(state, { ...state.document, settings: { ...state.document.settings, cols: action.cols, rows: action.rows }, placements: [] }, { syncForm: true, message: '已应用预设行列，可在网格中绘制盒子；原布局可撤销' });
     }
     if (action.type === 'place') {
       const placements = addPlacement(state.document.placements, action.rect, state.result.grid), selected = placements[placements.length - 1].id;
