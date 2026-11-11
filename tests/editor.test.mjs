@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PRINTER_PRESETS, printerPreset } from '../src/printers.ts';
-import { DEFAULTS } from '../src/core.ts';
+import { DEFAULTS, partFits } from '../src/core.ts';
 import { applyDraft, createEditor, editorReducer, readSavedDocument, serializeDocument, settingsDraft } from '../src/editor.ts';
 
 const place = (state, rect = { col: 0, row: 0, cols: 3, rows: 2 }) => editorReducer(state, { type: 'place', rect });
@@ -148,4 +148,19 @@ test('old drafts keep their exact dimensions and stale preset metadata never ove
   assert.equal(new Set(PRINTER_PRESETS.map((preset) => preset.id)).size, PRINTER_PRESETS.length);
   assert.deepEqual(printerPreset('bambu-h2c-right').volume, { bedWidth: 305, bedDepth: 320, bedHeight: 325 });
   assert.deepEqual(printerPreset('snapmaker-artisan-dual').volume, { bedWidth: 350, bedDepth: 400, bedHeight: 400 });
+});
+
+test('X2D nozzle modes enforce fractional X and distinct Z limits while H3C uses its full volume', () => {
+  const initial = createEditor();
+  const main = choosePrinter(initial, 'bambu-x2d-main').document.settings;
+  assert.equal(partFits({ width: 256, depth: 256, height: 260 }, main), true);
+  for (const id of ['bambu-x2d-auxiliary', 'bambu-x2d-dual']) {
+    const cfg = choosePrinter(initial, id).document.settings;
+    assert.equal(partFits({ width: 235.5, depth: 256, height: 256 }, cfg), true);
+    assert.equal(partFits({ width: 235.6, depth: 256, height: 256 }, cfg), false);
+    assert.equal(partFits({ width: 235.5, depth: 256, height: 260 }, cfg), false);
+  }
+  const h3c = choosePrinter(initial, 'bambu-h3c').document.settings;
+  assert.equal(partFits({ width: 330, depth: 320, height: 325 }, h3c), true);
+  assert.equal(partFits({ width: 330.1, depth: 320, height: 325 }, h3c), false);
 });
