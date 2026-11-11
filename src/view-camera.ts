@@ -11,6 +11,21 @@ export function boxCorners(box: Box3) {
   return points;
 }
 
+// Keep depth precision around the visible model, including after orbiting/zooming.
+export function updateCameraClipping(camera: PreviewCamera, box: Box3) {
+  camera.updateMatrixWorld(true);
+  const depths = boxCorners(box).map((point) => -point.applyMatrix4(camera.matrixWorldInverse).z);
+  const diagonal = Math.max(box.getSize(new Vector3()).length(), 1);
+  const padding = Math.max(1, diagonal * 0.01);
+  const nearest = Math.min(...depths),
+    farthest = Math.max(...depths);
+  // Zooming can put the eye inside the bounds. Keep a small positive near plane
+  // in that case, rather than clipping the entire model or using a negative near.
+  camera.near = Math.max(0.01, nearest > 0 ? nearest - padding : diagonal * 0.001);
+  camera.far = Math.max(camera.near + padding, farthest + padding);
+  camera.updateProjectionMatrix();
+}
+
 // Fit every corner, including its depth, rather than using a 2D bounding radius.
 export function fitViewCamera(
   camera: PreviewCamera,
@@ -58,11 +73,8 @@ export function fitViewCamera(
     camera.position.copy(center).addScaledVector(eye, distance);
     camera.zoom = zoom;
   }
-  camera.near = Math.max(0.05, diagonal * 0.0001);
-  camera.far = Math.max(distance / zoom + diagonal * 5, diagonal * 8);
   camera.lookAt(center);
-  camera.updateProjectionMatrix();
-  camera.updateMatrixWorld(true);
+  updateCameraClipping(camera, box);
   return { center, distance };
 }
 

@@ -32,7 +32,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { display } from './core.ts';
 import { partFits } from './printing.ts';
 import { partGeometry, platePartGeometry } from './view-geometry.ts';
-import { fitViewCamera, projectPoint, gridCellAt } from './view-camera.ts';
+import { fitViewCamera, updateCameraClipping, projectPoint, gridCellAt } from './view-camera.ts';
 import { wheelAction } from './view-input.ts';
 
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -72,6 +72,7 @@ export class CabinetPreview {
   observer: ResizeObserver;
   result?: DesignResult;
   bounds?: Box3;
+  clippingBounds?: Box3;
   cameraState?: { cw: number; ch: number };
   worldWidth = 0;
   worldDepth = 0;
@@ -432,6 +433,8 @@ export class CabinetPreview {
         );
       }
     }
+    // Include the cabinet boards and print bed, which extend beyond framing bounds.
+    this.clippingBounds = this.bounds.clone().union(new Box3().setFromObject(this.content));
     this.frameCamera();
     this.render();
   }
@@ -520,6 +523,7 @@ export class CabinetPreview {
       this.frameCamera();
     }
     this.cameraState = { cw, ch };
+    if (this.clippingBounds) updateCameraClipping(this.activeCamera, this.clippingBounds);
     this.renderer.render(this.scene, this.activeCamera);
     this.renderOverlay();
   }
