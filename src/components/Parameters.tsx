@@ -63,7 +63,13 @@ export function Parameters({ editor, draft, changeField, applyNow, run, sidebarR
     <section className="parameter-section">
       <h2>选择单元</h2>
       <div className="fields two custom-grid">{gridFields.map(field)}</div>
-      <div className="grid-presets"><span id="preset-label">预设</span><div id="grid-candidates" className="grid-candidates" role="group" aria-labelledby="preset-label">
+      <div className="unit-dimensions">
+        <span>单元格尺寸</span>
+        <output id="cell-size" aria-label="当前单元格宽乘高，毫米" aria-live="polite">
+          {error ? '—' : <>{display(grid.unitWidth)} × {display(grid.unitHeight)}<span>mm</span></>}
+        </output>
+      </div>
+      <div className="grid-presets" hidden={candidates.length === 0}><span id="preset-label">预设</span><div id="grid-candidates" className="grid-candidates" role="group" aria-labelledby="preset-label">
         {candidates.map((option) => {
           const active = option.cols === cfg.cols && option.rows === cfg.rows;
           return <button key={option.id} type="button" className={`grid-option${active ? ' active' : ''}`} disabled={!!error} aria-pressed={active}
@@ -71,8 +77,7 @@ export function Parameters({ editor, draft, changeField, applyNow, run, sidebarR
             onClick={() => run({ type: 'preset', cols: option.cols, rows: option.rows })}>{option.name}</button>;
         })}
       </div></div>
-      <p id="no-candidates" className="field-note" hidden={candidates.length > 0}>暂无同时满足盒子与框套打印范围的预设，请调整尺寸或打印范围。</p>
-      <div className="unit-dimensions"><div><span>单元格尺寸</span><small>宽 × 高 · mm</small></div><output id="cell-size" aria-label="当前单元格宽乘高，毫米" aria-live="polite">{error ? '—' : `${display(grid.unitWidth)} × ${display(grid.unitHeight)}`}</output></div>
+      <p id="no-candidates" className="field-note" hidden={candidates.length > 0}>暂无适用预设，请调整尺寸或打印范围。</p>
     </section>
     <details className="parameter-section structure-settings">
       <summary>结构与间隙<Icon name="plus" /></summary>

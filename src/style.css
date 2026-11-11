@@ -89,10 +89,10 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .grid-option:hover { border-color:#bdbcb8; color:#5d6259; }
 .grid-option.active { border-color:#a7957d; background:#f8f6f2; color:#796344; }
 .custom-grid { margin-top:0; }
-.unit-dimensions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; padding:13px 12px; border:1px solid #e9e9e4; border-radius:6px; background:#f7f7f4; }
-.unit-dimensions > div { display:flex; flex-direction:column; gap:5px; color:#777c72; font-size:10px; }
-.unit-dimensions small { color:#a0a399; font-size:9px; }
-.unit-dimensions output { color:#565e50; font:14px var(--mono); white-space:nowrap; }
+.unit-dimensions { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 12px; margin-top:10px; line-height:1.5; }
+.unit-dimensions > span { color:var(--muted); font-size:10px; }
+.unit-dimensions output { display:inline-flex; align-items:baseline; gap:5px; color:#4d5052; font:12px var(--mono); white-space:nowrap; }
+.unit-dimensions output > span { color:var(--muted); font-size:10px; }
 .structure-settings { padding-top: 17px; padding-bottom: 17px; }
 .structure-settings summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; list-style: none; color: #76787a; font-size: 11px; }
 .structure-settings summary::-webkit-details-marker { display: none; }
