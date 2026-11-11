@@ -2,9 +2,9 @@
 
 ## 项目与命令
 
-- Vite 构建的纯静态 ES 模块应用，Node.js >= 22.12。源码使用 TypeScript（strict），界面使用已批准的 `react@^19.3.1`、`react-dom@^19.3.1`；3D 使用 `three@^0.187.0` 及同包 OrbitControls；构建依赖为 `vite@^8.3.7`、`@vitejs/plugin-react@^6.3.0`。类型检查依赖 `typescript@^7.0.2`、`@types/react@^19.3.0`、`@types/react-dom@^19.3.0`、`@types/three@^0.187.0`；这些版本范围、正常传递依赖及 TypeScript 平台二进制已获批准。
+- Vite 构建的纯静态 ES 模块应用，Node.js 支持范围为 `^22.12.0 || ^24.0.0 || >=26.0.0`（与 Vitest 一致），CI 使用 Node.js 22。源码使用 TypeScript（strict），界面使用已批准的 `react@^19.3.1`、`react-dom@^19.3.1`；3D 使用 `three@^0.187.0` 及同包 OrbitControls；构建依赖为 `vite@^8.3.7`、`@vitejs/plugin-react@^6.3.0`。类型检查依赖 `typescript@^7.0.2`、`@types/react@^19.3.0`、`@types/react-dom@^19.3.0`、`@types/three@^0.187.0`；这些版本范围、正常传递依赖及 TypeScript 平台二进制已获批准。
 - 引入或更新任何外部依赖、临时工具、CDN 或 CI Action 前，说明名称、版本、用途、取舍、替代方案及传递依赖，并取得人类明确批准。安装锁文件中已有依赖无需重复审批。
-- `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 验证；`npm run typecheck` 严格类型检查；`npm run build` 先检查类型再生成 `dist/`；`npm run preview` 验证构建。
+- `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 通过 Vitest 单次验证；`npm run test:watch` 监听单测；`npm run typecheck` 严格检查源码与测试类型；`npm run build` 先检查类型再生成 `dist/`；`npm run preview` 验证构建。
 - `dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
 - 入口为根目录 `index.html`，源码放在 `src/`，原样发布的静态资源放在 `public/`；Vite 配置保留 Pages 子路径，其余优先使用默认值。
 - 保留根目录 MIT LICENSE，以及构建输出中的第三方许可证声明（由 Vite 内置功能写入 `dist/THIRD_PARTY_LICENSES.md`）。
@@ -26,6 +26,12 @@
 - 已批准开发依赖 `oxfmt@^0.78.0`、tinypool 和工具自带打包依赖及平台二进制。`npm run format` 写入统一格式，`npm run format:check` 只检查；保持 `.oxfmtrc.json` 的格式约定。生成的 `package-lock.json` 不参与手工格式化，其他忽略沿用 `.gitignore`。
 - `.oxlintrc.json` 使用正确性规则、React/Hooks 与 TypeScript 规则。保持与现有 `strict` 类型检查互补；不要通过批量禁用规则或忽略注释掩盖实际问题。
 - 提交前运行 `npm run format:check`、`npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。提交和 PR 标题遵循 Conventional Commits，PR 由仓库所有者合并。
+
+## 测试约定
+
+- 已批准开发依赖 `vitest@^5.1.0`、`@types/node@^22.20.5` 及其正常传递依赖。单测放在 `tests/*.test.ts`，配置为 `vitest.config.ts`，采用 Node 环境和显式导入，不加载 DOM 模拟器。
+- `tsconfig.test.json` 继承严格检查，覆盖测试、辅助夹具和 Vitest 配置。迁移或新增测试必须同时通过运行和类型检查，不用 `any`、忽略指令或非空断言掩盖夹具问题；缺失值用实际断言缩小类型。
+- 相机单测的原型夹具仅初始化相机相关属性，复用真实 Three.js/OrbitControls；完整 DOM/WebGL 初始化必须通过浏览器验证。
 
 ## TypeScript 与 React 组件边界
 

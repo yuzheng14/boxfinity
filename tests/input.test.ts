@@ -1,4 +1,6 @@
-import test from 'node:test';
+import { test } from 'vitest';
+import type { View, WheelInput } from '../src/view-types.ts';
+import type { Vec3 } from '../src/types.ts';
 import assert from 'node:assert/strict';
 import { Box3, Vector3, PerspectiveCamera, OrthographicCamera } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -6,10 +8,28 @@ import { CabinetPreview } from '../src/renderer.ts';
 import { projectPoint, gridCellAt } from '../src/view-camera.ts';
 import { design } from '../src/core.ts';
 
-const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} ≈ ${b}`);
-function previewFor(view) {
+const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-7, `${a} ≈ ${b}`);
+function previewFor(view: View | 'top') {
   // Exercise the real camera/OrbitControls methods without a DOM or GPU.
-  const preview = Object.assign(Object.create(CabinetPreview.prototype), {
+  type CameraHarness = Pick<
+    CabinetPreview,
+    | 'view'
+    | 'plateMode'
+    | 'tool'
+    | 'cameras'
+    | 'activeCamera'
+    | 'orbits'
+    | 'controls'
+    | 'zoom'
+    | 'handleWheel'
+    | 'setZoom'
+    | 'frameCamera'
+    | 'reset'
+  > & { canvas: { clientWidth: number; clientHeight: number }; bounds: Box3 };
+  // Only the camera-facing portion is initialized; the browser suite exercises
+  // the complete WebGL constructor. No DOM element is attached to OrbitControls.
+  const preview = Object.create(CabinetPreview.prototype) as CameraHarness;
+  Object.assign(preview, {
     canvas: { clientWidth: 1200, clientHeight: 760 },
     view: view === 'top' ? 'plate' : view,
     plateMode: view === 'top' ? 'top' : 'isometric',
@@ -23,11 +43,14 @@ function previewFor(view) {
     },
     orbits: new Map(),
     render() {},
-  });
+  } satisfies Pick<
+    CameraHarness,
+    'canvas' | 'view' | 'plateMode' | 'tool' | 'bounds' | 'cameras' | 'orbits'
+  > &
+    Pick<CabinetPreview, 'render'>);
   for (const [key, camera] of Object.entries(preview.cameras)) {
     camera.up.set(0, key === 'top' ? 1 : 0, key === 'top' ? 0 : 1);
     const controls = new OrbitControls(camera, null);
-    controls.domElement = preview.canvas;
     controls.enableDamping = false;
     controls.enableZoom = false;
     controls.enablePan = false;
@@ -37,17 +60,16 @@ function previewFor(view) {
   preview.frameCamera();
   return preview;
 }
-const wheel = (extra = {}) => ({
+const wheel = (extra: Partial<WheelInput> = {}): WheelInput => ({
   deltaX: 0,
   deltaY: 0,
   deltaMode: 0,
   ctrlKey: false,
-  shiftKey: false,
   ...extra,
 });
 
 test('two-finger sliding orbits around a fixed target without translating it or changing zoom', () => {
-  for (const view of ['3d', 'plate']) {
+  for (const view of ['3d', 'plate'] as const) {
     const preview = previewFor(view),
       camera = preview.activeCamera,
       controls = preview.controls;
@@ -84,7 +106,7 @@ test('fast scrolling still rotates rather than zooms; line/page units match equi
   }
 });
 test('pinch/Ctrl+wheel changes scale without introducing a pan in perspective and orthographic views', () => {
-  for (const view of ['3d', 'front', 'plate', 'top']) {
+  for (const view of ['3d', 'front', 'plate', 'top'] as const) {
     const preview = previewFor(view),
       target = preview.controls.target.clone(),
       rotation = preview.activeCamera.quaternion.clone();
@@ -97,7 +119,7 @@ test('pinch/Ctrl+wheel changes scale without introducing a pan in perspective an
   }
 });
 test('selection/reframing and window resize retain orbit direction and zoom; reset centers the view', () => {
-  for (const view of ['3d', 'front', 'plate', 'top']) {
+  for (const view of ['3d', 'front', 'plate', 'top'] as const) {
     const preview = previewFor(view);
     preview.handleWheel(wheel({ deltaX: 85, deltaY: 50 }));
     preview.setZoom(1.3);
@@ -116,12 +138,12 @@ test('selection/reframing and window resize retain orbit direction and zoom; res
 });
 test('drawing picks the correct cell after orbiting and pinching the editor camera', () => {
   const { cfg, grid } = design({ width: 585, height: 330, depth: 330 });
-  for (const view of ['3d', 'front']) {
+  for (const view of ['3d', 'front'] as const) {
     const preview = previewFor(view);
     preview.handleWheel(wheel({ deltaX: -125, deltaY: 65 }));
     preview.setZoom(1.4);
     preview.activeCamera.updateMatrixWorld(true);
-    const point = [
+    const point: Vec3 = [
       cfg.edge + 3.5 * grid.unitWidth,
       cfg.edge - 0.8,
       cfg.height - cfg.edge - 2.5 * grid.unitHeight,
