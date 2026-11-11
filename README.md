@@ -13,7 +13,7 @@ npm ci
 npm run dev
 ```
 
-打开 <http://127.0.0.1:4173/boxfinity/>。Vite 开发服务提供模块解析与热更新。构建部署版本运行 `npm run build`，再用任意静态 HTTP 服务托管 `dist/`；`npm run preview` 可本地检查构建结果。Vite 的 base 为 `/boxfinity/`，与 GitHub Pages 仓库子路径一致。ES 模块需要 HTTP，不要通过 `file://` 打开。
+打开终端输出的地址（默认 <http://localhost:5173/boxfinity/>，端口占用时自动顺延）。Vite 开发服务提供模块解析与热更新。构建部署版本运行 `npm run build`，再用任意静态 HTTP 服务托管 `dist/`；`npm run preview` 可本地检查构建结果。Vite 的 base 为 `/boxfinity/`，与 GitHub Pages 仓库子路径一致。ES 模块需要 HTTP，不要通过 `file://` 打开。
 
 ```sh
 npm test
@@ -60,24 +60,26 @@ npm test
 
 ## 代码结构
 
-- `web/core.mjs`：参数、推荐单元、柜内组合尺寸、打印约束、变尺寸排盘。
-- `web/layout.mjs`：矩形拖选、占用、重叠检测与填充。
-- `web/printing.mjs`：有效打印范围、六种朝向、超限原因与一致的旋转变换。
-- `web/geometry.mjs`：带前沿指扣的盒子、开放框套的闭合网格。
-- `web/export.mjs` / `web/zip.mjs`：3MF、打印 ZIP 与装配清单。
-- `web/renderer.mjs`：Three.js 场景、均匀底色与轮廓线、OrbitControls、柜体与打印盘预览；保留真实透视和遮挡，不使用灯光及投影阴影。
-- `web/view-camera.mjs`：透视/正交取景、标注投影和网格射线拾取。
-- `web/view-input.mjs`：区分双指滑动旋转与捏合缩放，统一处理像素、行与页单位。
-- `web/view-geometry.mjs`：将现有几何与打印方向转换为 Three.js BufferGeometry。
-- `web/app.mjs`：编辑状态、历史、指针操作、持久化与导入导出。
-- `web/index.html` / `web/style.css`：左右两栏工作台与响应式布局。
-- `vite.config.mjs`：开发/预览端口、GitHub Pages 子路径、生产打包及 Three.js 许可证输出。
+入口 `index.html` 位于项目根目录，源码在 `src/`，无需处理的静态资源（如 favicon）在 `public/`。
+
+- `src/core.mjs`：参数、推荐单元、柜内组合尺寸、打印约束、变尺寸排盘。
+- `src/layout.mjs`：矩形拖选、占用、重叠检测与填充。
+- `src/printing.mjs`：有效打印范围、六种朝向、超限原因与一致的旋转变换。
+- `src/geometry.mjs`：带前沿指扣的盒子、开放框套的闭合网格。
+- `src/export.mjs` / `src/zip.mjs`：3MF、打印 ZIP 与装配清单。
+- `src/renderer.mjs`：Three.js 场景、均匀底色与轮廓线、OrbitControls、柜体与打印盘预览；保留真实透视和遮挡，不使用灯光及投影阴影。
+- `src/view-camera.mjs`：透视/正交取景、标注投影和网格射线拾取。
+- `src/view-input.mjs`：区分双指滑动旋转与捏合缩放，统一处理像素、行与页单位。
+- `src/view-geometry.mjs`：将现有几何与打印方向转换为 Three.js BufferGeometry。
+- `src/app.mjs`：编辑状态、历史、指针操作、持久化与导入导出。
+- `index.html` / `src/style.css`：左右两栏工作台与响应式布局。
+- `vite.config.mjs`：GitHub Pages 子路径与第三方许可证输出，其余使用 Vite 默认配置。
 
 ## 自动检查与发布
 
 [CI and Pages](./.github/workflows/ci-pages.yml) 在 PR 和 main 提交时使用 Node.js 22 安装锁定依赖、运行测试并构建。PR 任务只有源码读取权限；main 构建成功后上传 `dist/`，由独立部署任务发布到 [GitHub Pages](https://yuzheng14.github.io/boxfinity/)。也可在 Actions 页面手动运行 main 的工作流。部署任务使用 `github-pages` 环境，仅它拥有 Pages 和 OIDC 写权限。
 
-首次配置仓库时，将 Settings → Pages → Build and deployment → Source 设为 **GitHub Actions**。工作流中官方 Actions 已获批准并固定到完整提交 SHA；版本升级仍需先审批。不要将生成的 `dist/` 或 `web/vendor/` 提交进源码分支。
+首次配置仓库时，将 Settings → Pages → Build and deployment → Source 设为 **GitHub Actions**。工作流中官方 Actions 已获批准并固定到完整提交 SHA；版本升级仍需先审批。不要将生成的 `dist/` 提交进源码分支。
 
 ## 多会话开发
 
@@ -88,11 +90,11 @@ git fetch origin
 git worktree add ../boxfinity-my-task -b feat/my-task origin/main
 cd ../boxfinity-my-task
 npm ci
-PORT=4175 npm run dev
+npm run dev -- --port 5175
 ```
 
-各会话选择不同端口，通过 PR 合入 main。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
+默认端口占用时 Vite 会选择下一个可用端口；需要固定会话端口时使用 `--port`。通过 PR 合入 main。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
 
 ## 许可证
 
-项目使用 [MIT](./LICENSE)。Three.js 同为 MIT 协议，其许可证随静态构建放入 `dist/vendor/three/LICENSE`。
+项目使用 [MIT](./LICENSE)。Three.js 同为 MIT 协议。Vite 内置的许可证生成将打包依赖的声明写入 `dist/THIRD_PARTY_LICENSES.md`，随静态产物一起发布。

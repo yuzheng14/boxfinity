@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Box3, Vector3, PerspectiveCamera, OrthographicCamera } from 'three';
-import { fitViewCamera, projectPoint, gridCellAt, boxCorners } from '../web/view-camera.mjs';
-import { platePartGeometry } from '../web/view-geometry.mjs';
-import { design } from '../web/core.mjs';
-import { PRINT_ORIENTATIONS, dimensionsFor } from '../web/printing.mjs';
-import { modelXML } from '../web/export.mjs';
+import { fitViewCamera, projectPoint, gridCellAt, boxCorners } from '../src/view-camera.mjs';
+import { platePartGeometry } from '../src/view-geometry.mjs';
+import { design } from '../src/core.mjs';
+import { PRINT_ORIENTATIONS, dimensionsFor } from '../src/printing.mjs';
+import { modelXML } from '../src/export.mjs';
 const viewport={width:1200,height:760};
 const bounds=new Box3(new Vector3(0,0,0),new Vector3(585,330,330));
 const direction=new Vector3(.55,-1,.48);

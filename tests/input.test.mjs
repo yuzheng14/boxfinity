@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Box3, Vector3, PerspectiveCamera, OrthographicCamera } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CabinetPreview } from '../web/renderer.mjs';
-import { projectPoint, gridCellAt } from '../web/view-camera.mjs';
-import { design } from '../web/core.mjs';
+import { CabinetPreview } from '../src/renderer.mjs';
+import { projectPoint, gridCellAt } from '../src/view-camera.mjs';
+import { design } from '../src/core.mjs';
 
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} ≈ ${b}`);
 function previewFor(view){

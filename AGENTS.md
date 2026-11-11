@@ -5,8 +5,9 @@
 - Vite 构建的纯静态 ES 模块应用，Node.js >= 22.12。运行时依赖为已批准的 `three@^0.187.0`，OrbitControls 来自同一个包；构建依赖 `vite@^8.3.7` 及其正常传递依赖已获批准。
 - 引入或更新任何外部依赖、临时工具、CDN 或 CI Action 前，说明名称、版本、用途、取舍、替代方案及传递依赖，并取得人类明确批准。安装锁文件中已有依赖无需重复审批。
 - `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 验证；`npm run build` 生成 `dist/`；`npm run preview` 验证构建。
-- `web/vendor/`、`dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
-- 保留根目录 MIT LICENSE，以及构建输出中 Three.js 的 MIT 许可证（由 Vite 写入 `dist/vendor/three/LICENSE`）。
+- `dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
+- 入口为根目录 `index.html`，源码放在 `src/`，原样发布的静态资源放在 `public/`；Vite 配置保留 Pages 子路径，其余优先使用默认值。
+- 保留根目录 MIT LICENSE，以及构建输出中的第三方许可证声明（由 Vite 内置功能写入 `dist/THIRD_PARTY_LICENSES.md`）。
 - 已批准的官方 CI Actions：checkout@v7.0.1、setup-node@v7.1.0、configure-pages@v6.0.0、upload-pages-artifact@v5.0.0、deploy-pages@v5.0.1，以及它们的打包依赖和 upload-artifact@v7.0.0。完整提交 SHA 见 `.github/workflows/ci-pages.yml`。新增或升级仍须审批。
 - PR 只测试和构建，main 构建成功后自动发布 Pages；部署写权限只放在独立 deploy job，不使用 pull_request_target 执行 PR 代码。
 
@@ -15,7 +16,7 @@
 - 每个会话使用独立 Git worktree 和功能分支；不要在共享工作目录切换分支或改写其他会话的文件。
 - 开始前执行 `git status`，说明本次负责的功能与文件范围。提交保持单一目标，避免夹带其他会话的变更。
 - 例：`git fetch origin`，然后 `git worktree add ../boxfinity-<任务名> -b feat/<任务名> origin/main`。
-- 各 worktree 单独安装锁定依赖，并使用独立端口，例如 `PORT=4175 npm run dev`。不要停止其他会话的服务。
+- 各 worktree 单独安装锁定依赖，可用 `npm run dev -- --port 5175` 指定端口；默认端口占用时 Vite 自动顺延。不要停止其他会话的服务。
 - 通过 PR 合入 main，不覆盖远端历史。相互独立的任务分别开 PR；存在依赖的多层 PR 按 GitHub 原生 Stacked PR 约定组织，明确各层增量与审查顺序。
 - PR 描述写清问题、变更范围、验证结果和具体 review 重点。UI 变更必须在对应 PR 评论中实际上传运行界面的截图，确认图片可见并提供评论链接；本地路径不算完成。
 
