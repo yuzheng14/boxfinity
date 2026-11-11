@@ -240,6 +240,10 @@ test('print kit includes every drawer and frame and a versioned front-grid assem
   assert.deepEqual(projectBytes, project3MF(r));
   const project = readZip(projectBytes);
   assert.equal(project.size, 6);
+  assert.match(
+    new TextDecoder().decode(entry(project, '[Content_Types].xml')),
+    /<Override PartName="\/Metadata\/project_settings.config" ContentType="application\/json"\/>/,
+  );
   assert.deepEqual(readJSON(entry(project, 'Metadata/assembly.json')), manifest);
   assert.equal(records(manifest.boxes).length, 4);
   assert.equal(typeof manifest.gridAxes, 'string');

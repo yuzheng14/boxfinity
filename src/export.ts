@@ -53,7 +53,7 @@ function modelPackage(model: string, extra: { name: string; data: string }[] = [
   return zip([
     {
       name: '[Content_Types].xml',
-      data: '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/><Default Extension="config" ContentType="application/xml"/><Default Extension="json" ContentType="application/json"/></Types>',
+      data: `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/><Default Extension="config" ContentType="application/xml"/><Default Extension="json" ContentType="application/json"/>${extra.some((entry) => entry.name === 'Metadata/project_settings.config') ? '<Override PartName="/Metadata/project_settings.config" ContentType="application/json"/>' : ''}</Types>`,
     },
     {
       name: '_rels/.rels',
