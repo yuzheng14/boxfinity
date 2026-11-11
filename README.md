@@ -6,21 +6,24 @@
 
 ## 运行
 
-需要现有的 Node.js 22.12 或更新版本。首次运行先安装锁文件中的依赖：
+支持 Node.js 22.12+（22.x）、24.x 或 26+，与 Vitest 的版本要求一致；CI 使用 Node.js 22。首次运行先安装锁文件中的依赖：
 
 ```sh
 npm ci
 npm run dev
 ```
 
-应用源码使用 TypeScript，`tsconfig.json` 启用严格检查。`npm run typecheck` 单独检查类型，`npm run build` 先检查类型再打包；CI 使用同一构建命令。测试仍使用 Node 自带 runner，通过 `--experimental-strip-types` 直接运行核心 TS 模块，兼容 Node 22.12 起的类型剥离功能。
+应用源码和单元测试使用 TypeScript。`tsconfig.json` 检查浏览器源码，`tsconfig.test.json` 检查测试、夹具与 Vitest 配置，均启用严格检查。`npm run typecheck` 执行两者；`npm run build` 先检查类型再打包，CI 使用相同命令。
 
 打开终端输出的地址（默认 <http://localhost:5173/boxfinity/>，端口占用时自动顺延）。Vite 开发服务提供模块解析与热更新。构建部署版本运行 `npm run build`，再用任意静态 HTTP 服务托管 `dist/`；`npm run preview` 可本地检查构建结果。Vite 的 base 为 `/boxfinity/`，与 GitHub Pages 仓库子路径一致。ES 模块需要 HTTP，不要通过 `file://` 打开。
 
 ```sh
-npm test
-npm run typecheck
+npm test                 # Vitest 单次运行，适用于 CI
+npm run test:watch       # 本地监听变更
+npm run typecheck        # 源码与测试的严格类型检查
 ```
+
+单测使用已批准的 `vitest@^5.1.0`，测试文件为 `tests/*.test.ts`。保留现有几何、排盘、3MF、编辑状态及相机断言；使用 Node 环境运行，无需 DOM 或 GPU。相机测试调用真实 Three.js 相机和 OrbitControls，渲染器的 DOM/WebGL 集成由浏览器测试负责。运行测试不会替代类型检查。Node 测试 API 的类型由已批准的 `@types/node@^22.20.5` 提供。
 
 ## 代码检查
 

@@ -1,4 +1,5 @@
-import test from 'node:test';
+import { test } from 'vitest';
+import type { EditorState } from '../src/editor.ts';
 import assert from 'node:assert/strict';
 import { PRINTER_PRESETS, printerPreset } from '../src/printers.ts';
 import { DEFAULTS, partFits } from '../src/core.ts';
@@ -11,7 +12,7 @@ import {
   settingsDraft,
 } from '../src/editor.ts';
 
-const place = (state, rect = { col: 0, row: 0, cols: 3, rows: 2 }) =>
+const place = (state: EditorState, rect = { col: 0, row: 0, cols: 3, rows: 2 }) =>
   editorReducer(state, { type: 'place', rect });
 
 test('invalid input preserves the last valid document and its persisted layout until corrected', () => {
@@ -19,6 +20,7 @@ test('invalid input preserves the last valid document and its persisted layout u
     saved = serializeDocument(initial.document);
   const values = { ...settingsDraft(initial.document.settings), width: '' };
   const invalid = editorReducer(initial, { type: 'apply-settings', values });
+  assert.ok(invalid.error);
   assert.equal(invalid.error.field, 'width');
   assert.equal(invalid.draft.width, '');
   assert.equal(invalid.document, initial.document);
@@ -115,6 +117,7 @@ test('overlapping placements and invalid imported documents leave the current de
   const overlap = place(initial);
   assert.equal(overlap.document, initial.document);
   assert.equal(overlap.error, null);
+  assert.ok(overlap.notice);
   assert.ok(overlap.notice.message);
   const reset = editorReducer(initial, { type: 'reset' });
   assert.equal(reset.document.placements.length, 0);
@@ -125,7 +128,8 @@ test('overlapping placements and invalid imported documents leave the current de
   assert.deepEqual(loaded.draft, settingsDraft(initial.document.settings));
 });
 
-const choosePrinter = (state, id) => editorReducer(state, { type: 'printer-preset', id });
+const choosePrinter = (state: EditorState, id: string) =>
+  editorReducer(state, { type: 'printer-preset', id });
 
 test('printer presets update all axes together while preserving the cabinet, layout and margin', () => {
   const initial = place(createEditor({ settings: { ...DEFAULTS, margin: 3 }, placements: [] }));
@@ -192,6 +196,7 @@ test('choosing a printer repairs invalid printer inputs without committing unrel
     values: { ...initial.draft, width: '' },
   });
   const rejected = choosePrinter(invalidCabinet, 'snapmaker-u1');
+  assert.ok(rejected.error);
   assert.equal(rejected.error.field, 'width');
   assert.equal(rejected.document, initial.document);
   assert.equal(rejected.draft.width, '');
@@ -211,12 +216,16 @@ test('old drafts keep their exact dimensions and stale preset metadata never ove
     assert.equal(restored.printerPresetId, undefined);
   }
   assert.equal(new Set(PRINTER_PRESETS.map((preset) => preset.id)).size, PRINTER_PRESETS.length);
-  assert.deepEqual(printerPreset('bambu-h2c-right').volume, {
+  const h2c = printerPreset('bambu-h2c-right');
+  assert.ok(h2c);
+  assert.deepEqual(h2c.volume, {
     bedWidth: 305,
     bedDepth: 320,
     bedHeight: 325,
   });
-  assert.deepEqual(printerPreset('snapmaker-artisan-dual').volume, {
+  const artisan = printerPreset('snapmaker-artisan-dual');
+  assert.ok(artisan);
+  assert.deepEqual(artisan.volume, {
     bedWidth: 350,
     bedDepth: 400,
     bedHeight: 400,
@@ -245,6 +254,8 @@ test('a stale toast timeout cannot dismiss a newer notice or alter design histor
   const selected = editorReducer(first, { type: 'select', id: null });
   assert.equal(selected.notice, first.notice);
   const second = editorReducer(selected, { type: 'notify', message: '文件已下载' });
+  assert.ok(first.notice);
+  assert.ok(second.notice);
   const stale = editorReducer(second, { type: 'dismiss-notice', notice: first.notice });
   assert.equal(stale, second);
   const dismissed = editorReducer(stale, { type: 'dismiss-notice', notice: second.notice });
