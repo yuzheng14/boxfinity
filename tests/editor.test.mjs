@@ -164,3 +164,19 @@ test('X2D nozzle modes enforce fractional X and distinct Z limits while H3C uses
   assert.equal(partFits({ width: 330, depth: 320, height: 325 }, h3c), true);
   assert.equal(partFits({ width: 330.1, depth: 320, height: 325 }, h3c), false);
 });
+
+test('a stale toast timeout cannot dismiss a newer notice or alter design history', () => {
+  const initial = place(createEditor()), saved = serializeDocument(initial.document);
+  const first = editorReducer(initial, { type: 'notify', message: '方案已保存' });
+  const selected = editorReducer(first, { type: 'select', id: null });
+  assert.equal(selected.notice, first.notice);
+  const second = editorReducer(selected, { type: 'notify', message: '文件已下载' });
+  const stale = editorReducer(second, { type: 'dismiss-notice', notice: first.notice });
+  assert.equal(stale, second);
+  const dismissed = editorReducer(stale, { type: 'dismiss-notice', notice: second.notice });
+  assert.equal(dismissed.notice, null);
+  assert.equal(dismissed.document, initial.document);
+  assert.equal(dismissed.result, initial.result);
+  assert.equal(dismissed.past, initial.past);
+  assert.equal(serializeDocument(dismissed.document), saved);
+});

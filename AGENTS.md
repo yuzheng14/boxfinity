@@ -20,12 +20,18 @@
 - 通过 PR 合入 main，不覆盖远端历史。相互独立的任务分别开 PR；存在依赖的多层 PR 按 GitHub 原生 Stacked PR 约定组织，明确各层增量与审查顺序。
 - PR 描述写清问题、变更范围、验证结果和具体 review 重点。UI 变更必须在对应 PR 评论中实际上传运行界面的截图，确认图片可见并提供评论链接；本地路径不算完成。
 
+## 代码检查
+
+- 已批准开发依赖 `oxlint@^1.93.0` 及其正常传递依赖和平台二进制。`npm run lint` 检查源码、测试与配置，warning 也使检查失败；`npm run lint:fix` 只应用安全修复。
+- `.oxlintrc.json` 使用正确性规则、React/Hooks 与 TypeScript 规则。保持与现有 `strict` 类型检查互补；不要通过批量禁用规则或忽略注释掩盖实际问题。
+- 提交前运行 `npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。提交和 PR 标题遵循 Conventional Commits，PR 由仓库所有者合并。
+
 ## TypeScript 与 React 组件边界
 
 - 应用代码使用 `.ts` / `.tsx`，保留 `strict` 与 `erasableSyntaxOnly`。共享尺寸、布局、零件和打印结果契约放在 `types.ts`，视图契约放在 `view-types.ts`；外部 JSON 使用 `unknown` 并经运行时校验。不要通过 `any`、`@ts-ignore` 或关闭检查绕过错误。
-- `App.tsx` 组合应用；`use-editor.ts` 处理表单草稿与持久化；`editor.ts` 管理已验证设计、历史及选择。输入中的无效参数不得覆盖有效方案或 localStorage 草稿。
+- `App.tsx` 组合应用；`use-editor.ts` 处理表单草稿与持久化；`editor.ts` 管理已验证设计、历史及选择。输入中的无效参数不得覆盖有效方案或 localStorage 草稿；通知属于瞬时编辑状态，不写入方案或撤销历史。
 - `components/` 分别负责参数、测量浮层、盒子列表、三维视口与弹窗。表单和列表由 React 渲染，不恢复全局 DOM 查询及手工替换。
-- `PreviewWorkspace.tsx` 通过 ref 管理 Three.js 实例。React 不管理其 canvas / SVG 标注子树；卸载时移除事件监听、断开 ResizeObserver、dispose OrbitControls 和渲染资源。保留 StrictMode 的重复挂载检查。
+- `PreviewWorkspace.tsx` 通过稳定的 DOM 挂载回调创建和清理 Three.js 实例。React 不管理其 canvas / SVG 标注子树；卸载时移除事件监听、断开 ResizeObserver、dispose OrbitControls 和渲染资源。保留 StrictMode 的重复挂载检查。
 - 保持 v2 方案文件和 `boxfinity.cabinet.v2` 草稿兼容。框架迁移不改变几何、打印方向或 3MF 坐标。
 
 ## 模型与交互边界

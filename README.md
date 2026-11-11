@@ -22,6 +22,15 @@ npm test
 npm run typecheck
 ```
 
+## 代码检查
+
+```sh
+npm run lint
+npm run lint:fix
+```
+
+Oxlint 检查源码、测试与 Vite 配置中的正确性、React/Hooks 和 TypeScript 问题；CI 在测试前执行 lint，warning 也会使任务失败。`lint:fix` 仅应用安全修复。类型检查仍由 `npm run typecheck` 和构建前的 TypeScript 检查负责。
+
 ## 工作流程
 
 1. 左侧填写柜内净宽、高、深和实际打印范围。

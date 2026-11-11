@@ -16,7 +16,7 @@ interface NumberFieldProps {
   help?: ReactNode; field: Field; draft: EditorControls['draft']; error: EditorError | null;
   onChange: EditorControls['changeField']; onApply: EditorControls['applyNow'];
 }
-interface ParametersProps extends EditorControls {
+interface ParametersProps extends Pick<EditorControls, 'editor' | 'draft' | 'changeField' | 'applyNow' | 'run'> {
   sidebarRef: RefObject<HTMLElement | null>; scrollRef: RefObject<HTMLDivElement | null>;
 }
 const gridFields: Field[] = [['cols', '网格列数', '列', 1, 24, 1], ['rows', '网格行数', '行', 1, 24, 1]];

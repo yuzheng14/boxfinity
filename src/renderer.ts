@@ -248,7 +248,7 @@ export class CabinetPreview {
         root.append(svg('polygon',{points:points.map((p)=>p.join(',')).join(' '),class:'grid-cell','data-col':col,'data-row':row,role:'button',tabindex:0,'aria-label':`第${col+1}列，第${row+1}行`}));
       }
       for(const box of boxes){
-        const points=this.rectPoints(box),selected=box.id===this.selected;
+        const selected=box.id===this.selected;
         const offset=selected&&this.pull?grid.depth*.5:0;
         const center=this.project([box.x+box.frame.width/2,cfg.edge-offset-.2,box.z+box.frame.depth/2]);
         label(`${box.cols} × ${box.rows}`,center,`box-label${selected?' selected':''}`);

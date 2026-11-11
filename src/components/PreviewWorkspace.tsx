@@ -3,7 +3,7 @@ import type { EditorState, RunEditorAction } from '../editor.ts';
 import { errorDetails } from '../editor.ts';
 import type { GridCell } from '../types.ts';
 import type { View, Tool, Viewport, UpdateViewport } from '../view-types.ts';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CabinetPreview } from '../renderer.ts';
 import { rectangleBetween, placementError } from '../layout.ts';
 import { display } from '../core.ts';
@@ -23,24 +23,23 @@ export function PreviewWorkspace({ editor, viewport, updateViewport, setView, se
   const { result, selected, error, past, future } = editor, { cfg, grid } = result;
   const plateIndex = Math.max(0, Math.min(viewport.plateIndex, result.plates.length - 1));
   const { view, tool, pull, plateMode } = viewport, isPlate = view === 'plate';
-  const current = useRef({ viewport, updateViewport });
-  current.current = { viewport, updateViewport };
-
-  useEffect(() => {
-    const canvas = canvasRef.current, overlay = overlayRef.current, stage = stageRef.current;
+  const attachStage = useCallback((stage: HTMLDivElement | null) => {
+    stageRef.current = stage;
+    const canvas = canvasRef.current, overlay = overlayRef.current;
     if (!canvas || !overlay || !stage) return;
     let preview: CabinetPreview;
     try {
       preview = new CabinetPreview(canvas, overlay);
       previewRef.current = preview;
+      setPreviewError(null);
     } catch (failure) { setPreviewError(errorDetails(failure).message); return; }
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
       if (!event.ctrlKey && (event.deltaX || event.deltaY)) {
         if (preview.view === 'front') {
-          preview.setView('3d'); current.current.updateViewport({ view: '3d' });
+          preview.setView('3d'); updateViewport({ view: '3d' });
         } else if (preview.view === 'plate' && preview.plateMode === 'top') {
-          preview.setPlateView('isometric'); current.current.updateViewport({ plateMode: 'isometric' });
+          preview.setPlateView('isometric'); updateViewport({ plateMode: 'isometric' });
         }
       }
       preview.handleWheel(event);
@@ -49,23 +48,24 @@ export function PreviewWorkspace({ editor, viewport, updateViewport, setView, se
     stage.addEventListener('wheel', wheel, { passive: false });
     return () => {
       stage.removeEventListener('wheel', wheel);
-      gestureRef.current = null; previewRef.current = null;
+      gestureRef.current = null; previewRef.current = null; stageRef.current = null;
+      stage.classList.remove('dragging');
       preview.dispose();
     };
-  }, []);
+  }, [updateViewport]);
   useEffect(() => {
     const preview = previewRef.current;
     if (!preview) return;
     Object.assign(preview, { view, tool, pull, selected, plateIndex, plateMode });
     preview.update(result);
-  }, [result, selected, view, tool, pull, plateIndex, plateMode]);
+  }, [result, selected, view, tool, pull, plateIndex, plateMode, attachStage]);
   useEffect(() => {
     if (!resetRevision) return;
     previewRef.current?.reset(); updateViewport({ plateMode: 'isometric' });
-  }, [resetRevision]);
+  }, [resetRevision, updateViewport]);
   useEffect(() => {
     if (isPlate && !result.printable) updateViewport({ view: '3d' });
-  }, [isPlate, result.printable]);
+  }, [isPlate, result.printable, updateViewport]);
 
   function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     const preview = previewRef.current;
@@ -125,7 +125,7 @@ export function PreviewWorkspace({ editor, viewport, updateViewport, setView, se
       <div className="view-group" role="group" aria-label="预览视图">{([['front', '正面', 'front'], ['3d', '3D', 'box'], ['plate', '打印盘', 'printer']] as const).map(([value, label, icon]) => <button key={value} className={`view-button${view === value ? ' active' : ''}`} data-view={value} aria-pressed={view === value} disabled={value === 'plate' && (!result.printable || !!error)} onClick={() => setView(value)}><Icon name={icon} />{label}</button>)}</div>
     </div>
     <div id="design-error" className="error-banner" role="alert" hidden={!error}>{error?.message}</div>
-    <div ref={stageRef} id="stage" className={`stage ${tool}-tool${isPlate ? ' plate-view' : ''}`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishGesture} onPointerCancel={finishGesture}>
+    <div ref={attachStage} id="stage" className={`stage ${tool}-tool${isPlate ? ' plate-view' : ''}`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishGesture} onPointerCancel={finishGesture}>
       <canvas ref={canvasRef} id="preview" aria-label={isPlate ? '打印盘立体模型，拖动旋转、双指旋转、捏合缩放' : '柜子三维模型，使用上方工具切换绘制或旋转'} />
       <svg ref={overlayRef} id="grid-overlay" className={`grid-overlay${isPlate ? ' plate-overlay' : ''}`} aria-label={isPlate ? '打印盘零件与尺寸' : '柜子正面网格'} onKeyDown={gridKeyDown} />
       <div className="viewport-caption"><span id="cabinet-caption">{isPlate ? `${display(cfg.bedWidth)} × ${display(cfg.bedDepth)} mm` : `${display(cfg.width)} × ${display(cfg.height)} × ${display(cfg.depth)} mm`}</span><span id="view-caption">{isPlate ? '与 3MF 导出方向一致' : '柜内 · 宽 × 高 × 深'}</span></div>
