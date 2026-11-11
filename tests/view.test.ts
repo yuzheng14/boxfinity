@@ -3,7 +3,13 @@ import type { PreviewCamera } from '../src/view-types.ts';
 import type { Vec3, PlateItem } from '../src/types.ts';
 import assert from 'node:assert/strict';
 import { Box3, Vector3, PerspectiveCamera, OrthographicCamera } from 'three';
-import { fitViewCamera, projectPoint, gridCellAt, boxCorners } from '../src/view-camera.ts';
+import {
+  fitViewCamera,
+  updateCameraClipping,
+  projectPoint,
+  gridCellAt,
+  boxCorners,
+} from '../src/view-camera.ts';
 import { platePartGeometry } from '../src/view-geometry.ts';
 import { design } from '../src/core.ts';
 import { printOptions } from '../src/printing.ts';
@@ -50,6 +56,68 @@ test('camera framing keeps deep, tall, pulled-out and narrow-viewport designs in
         `corner must remain visible: ${p.toArray()}`,
       );
     }
+  }
+});
+test('orbiting and zooming preserve enough depth precision to distinguish thin walls', () => {
+  for (const max of [
+    [585, 325, 330],
+    [3000, 1000, 3000],
+    [80, 40, 80],
+  ] satisfies Vec3[]) {
+    const box = new Box3(new Vector3(0, -max[1] / 2, -4), new Vector3(...max));
+    const camera = perspective(box);
+    const center = box.getCenter(new Vector3()),
+      distance = camera.position.distanceTo(center);
+    for (const zoom of [0.35, 0.5, 0.7, 1])
+      for (const eye of [new Vector3(-1.2, -0.4, 0.3), direction, new Vector3(0, -1, 0.1)]) {
+        camera.position.copy(center).addScaledVector(eye.clone().normalize(), distance / zoom);
+        camera.lookAt(center);
+        const position = camera.position.clone(),
+          rotation = camera.quaternion.clone();
+        updateCameraClipping(camera, box);
+        assert.ok(camera.position.equals(position));
+        assert.ok(camera.quaternion.equals(rotation));
+        for (const corner of boxCorners(box)) {
+          const depth = -corner.clone().applyMatrix4(camera.matrixWorldInverse).z;
+          assert.ok(depth > camera.near && depth < camera.far, 'model must not be depth-clipped');
+          // One step in a 24-bit perspective depth buffer, in millimetres.
+          const step = (depth ** 2 * (1 / camera.near - 1 / camera.far)) / (2 ** 24 - 1);
+          assert.ok(
+            step < 0.02,
+            `depth precision must resolve the minimum 0.2mm clearance: ${step}`,
+          );
+        }
+      }
+  }
+});
+test('clipping updates retain pulled drawers, cabinet boards and the print bed in every view', () => {
+  const box = new Box3(new Vector3(0, -180, -4), new Vector3(585, 333, 330));
+  for (const camera of [new PerspectiveCamera(36), new OrthographicCamera()])
+    for (const eye of [direction, new Vector3(0, -1, 0), new Vector3(0, 0, 1)]) {
+      camera.up.set(0, eye.z === 1 ? 1 : 0, eye.z === 1 ? 0 : 1);
+      fitViewCamera(camera, box, viewport.width, viewport.height, { direction: eye });
+      for (const corner of boxCorners(box)) {
+        const point = corner.project(camera);
+        assert.ok(point.z > -1 && point.z < 1, 'all geometry must remain between the clip planes');
+      }
+    }
+});
+test('zooming inside the model keeps valid clip planes and recovers when zooming back out', () => {
+  const camera = perspective(),
+    center = bounds.getCenter(new Vector3());
+  camera.position.copy(center);
+  camera.lookAt(center.clone().add(new Vector3(0, 1, 0)));
+  updateCameraClipping(camera, bounds);
+  assert.ok(camera.near > 0 && camera.far > camera.near);
+  const forward = new Vector3(center.x, bounds.max.y, center.z).project(camera);
+  assert.ok(forward.z > -1 && forward.z < 1);
+  camera.position.copy(center).add(new Vector3(0, -3000, 0));
+  camera.lookAt(center);
+  updateCameraClipping(camera, bounds);
+  assert.ok(camera.near > 2000, 'zooming back out must restore depth precision');
+  for (const corner of boxCorners(bounds)) {
+    const point = corner.project(camera);
+    assert.ok(point.z > -1 && point.z < 1);
   }
 });
 test('front and top orthographic views preserve scale and orient the drawing axes correctly', () => {
