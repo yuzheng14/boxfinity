@@ -117,6 +117,58 @@ test('all plates download as one 3MF project and remain available inside the ZIP
   expect(readJSON(entry(bundle, 'assembly.json'))).toEqual(manifest);
 });
 
+test('exports follow the selected machine after reload and disclose fallback after custom XYZ', async ({
+  app: page,
+}, testInfo) => {
+  const printer = page.getByRole('combobox', { name: '打印机预设', exact: true });
+  await printer.selectOption('bambu-a1');
+  await dragRectangle(page, [1, 1]);
+  // Same-size models must retain identity instead of being inferred from XYZ.
+  await printer.selectOption('bambu-p1s');
+  await page.reload();
+  await expect(printer).toHaveValue('bambu-p1s');
+  await page.getByRole('button', { name: '选择盒子 1，1乘1', exact: true }).click();
+  await page.getByRole('button', { name: '导出这一组', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '导出打印文件', exact: true });
+  await expect(page.locator('#export-preset-note')).toContainText('Bambu Lab P1S');
+  await expect(page.locator('#export-preset-note')).not.toContainText('兼容兜底');
+  await page.screenshot({ path: testInfo.outputPath('selected-printer-export.png') });
+  const projectEvent = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: '下载整套 3MF', exact: true }).click();
+  const files = readZip(await downloadBytes(await projectEvent));
+  const project = readJSON(entry(files, 'Metadata/project_settings.config'));
+  expect(project.printer_settings_id).toBe('Bambu Lab P1S 0.4 nozzle');
+  expect(project.inherits_group).toEqual([
+    '0.20mm Standard @BBL X1C',
+    'Generic PETG',
+    'Bambu Lab P1S 0.4 nozzle',
+  ]);
+  expect(readJSON(entry(files, 'Metadata/assembly.json')).printerPresetId).toBe('bambu-p1s');
+  const bundleEvent = page.waitForEvent('download');
+  await dialog
+    .getByRole('button', { name: '下载 ZIP（含单盘文件与装配清单）', exact: true })
+    .click();
+  const bundle = readZip(await downloadBytes(await bundleEvent));
+  expect(entry(bundle, 'boxfinity.3mf')).toEqual(await downloadBytes(await projectEvent));
+  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+  await setNumber(page, 'X', '255');
+  await expect(printer).toHaveValue('');
+  await page.getByRole('button', { name: '导出 3MF', exact: true }).click();
+  await expect(page.locator('#export-preset-note')).toContainText('兼容兜底：Bambu Lab X1 Carbon');
+  await expect(page.locator('#export-preset-note')).toContainText('保留当前 XYZ');
+  await page.screenshot({ path: testInfo.outputPath('fallback-printer-export.png') });
+  const fallbackEvent = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: '下载整套 3MF', exact: true }).click();
+  const fallback = readZip(await downloadBytes(await fallbackEvent));
+  const fallbackConfig = readJSON(entry(fallback, 'Metadata/project_settings.config'));
+  expect(fallbackConfig.printer_settings_id).toBe('Bambu Lab X1 Carbon 0.4 nozzle');
+  expect(fallbackConfig.printable_area).toEqual(['0x0', '255x0', '255x256', '0x256']);
+  expect(fallbackConfig.printable_height).toBe('256');
+  expect(record(readJSON(entry(fallback, 'Metadata/assembly.json')).slicerPreset).fallback).toBe(
+    true,
+  );
+});
+
 test('layouts above the project plate limit keep their single-plate ZIP download', async ({
   app: page,
 }, testInfo) => {

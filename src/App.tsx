@@ -31,8 +31,12 @@ export default function App() {
     plateMode: 'isometric',
   });
   const [resetRevision, setResetRevision] = useState(0);
-  const [exportResult, setExportResult] = useState<DesignResult | null>(null),
+  const [exportSelection, setExportSelection] = useState<{
+      result: DesignResult;
+      printerPresetId?: string;
+    } | null>(null),
     [helpOpen, setHelpOpen] = useState(false);
+  const exportResult = exportSelection?.result ?? null;
   const updateViewport = useCallback(
     (patch: Partial<Viewport>) => setViewport((previous) => ({ ...previous, ...patch })),
     [],
@@ -99,8 +103,13 @@ export default function App() {
       const rect = result.placements.find((item) => item.id === editor.selected);
       if (!rect) return;
       const selectedResult = design(result.cfg, [rect]);
-      if (selectedResult.printable) setExportResult(selectedResult);
-    } else if (result.printable) setExportResult(result);
+      if (selectedResult.printable)
+        setExportSelection({
+          result: selectedResult,
+          printerPresetId: editor.document.printerPresetId,
+        });
+    } else if (result.printable)
+      setExportSelection({ result, printerPresetId: editor.document.printerPresetId });
   }
   function saveDesign() {
     const result = applyNow();
@@ -222,11 +231,12 @@ export default function App() {
       />
       <ExportDialog
         result={exportResult}
-        onClose={() => setExportResult(null)}
+        printerPresetId={exportSelection?.printerPresetId}
+        onClose={() => setExportSelection(null)}
         onPlate={downloadPlate}
         onProject={(result) => {
           download(
-            project3MF(result),
+            project3MF(result, exportSelection?.printerPresetId),
             `boxfinity-cabinet-${result.cfg.width}x${result.cfg.height}.3mf`,
             'model/3mf',
           );
@@ -234,7 +244,7 @@ export default function App() {
         }}
         onBundle={(result) => {
           download(
-            printBundle(result),
+            printBundle(result, exportSelection?.printerPresetId),
             `boxfinity-cabinet-${result.cfg.width}x${result.cfg.height}.zip`,
             'application/zip',
           );

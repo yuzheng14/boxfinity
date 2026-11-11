@@ -14,6 +14,7 @@ import {
   pointOnPlate,
 } from '../src/printing.ts';
 import { modelXML, project3MF, printBundle, MAX_PROJECT_PLATES } from '../src/export.ts';
+import { printerPreset } from '../src/printers.ts';
 // Keep the original nonzero margin explicit in the legacy screenshot regression.
 const cfg = {
   width: 585,
@@ -324,10 +325,83 @@ test('multi-plate 3MF assigns each mesh once and preserves every local print tra
     const project = readJSON(entry(files, 'Metadata/project_settings.config'));
     assert.deepEqual(project.printable_area, ['0x0', '330x0', '330x320', '0x320']);
     assert.equal(project.printable_height, '325');
-    assert.equal(project.printer_settings_id, 'Boxfinity');
+    assert.equal(project.printer_settings_id, 'Bambu Lab X1 Carbon 0.4 nozzle');
     assert.deepEqual(project.nozzle_diameter, ['0.4']);
     assert.ok(!('machine_start_gcode' in project));
   }
+});
+
+test('selected machines inherit their own system profiles, including models with identical XYZ', () => {
+  for (const [id, machine, process, filament, nozzles] of [
+    ['bambu-a1', 'A1', 'A1', 'Generic PETG @BBL A1', 1],
+    ['bambu-p1s', 'P1S', 'X1C', 'Generic PETG', 1],
+    ['bambu-h3c', 'H3C', 'H3C', 'Generic PETG @BBL H3C', 1],
+    ['bambu-h2c-right', 'H2C', 'H2C', 'Generic PETG @BBL H2C 0.4 nozzle', 2],
+  ] as const) {
+    const preset = printerPreset(id);
+    assert.ok(preset);
+    const result = design(preset.volume, [{ id: 7, col: 0, row: 0, cols: 1, rows: 1 }]);
+    const files = readZip(project3MF(result, id));
+    const project = readJSON(entry(files, 'Metadata/project_settings.config'));
+    assert.equal(project.printer_settings_id, `Bambu Lab ${machine} 0.4 nozzle`);
+    assert.equal(project.print_settings_id, `0.20mm Standard @BBL ${process}`);
+    assert.deepEqual(project.filament_settings_id, [filament]);
+    assert.deepEqual(
+      project.nozzle_diameter,
+      Array.from({ length: nozzles }, () => '0.4'),
+    );
+    assert.deepEqual(project.inherits_group, [
+      project.print_settings_id,
+      filament,
+      project.printer_settings_id,
+    ]);
+    assert.deepEqual(project.different_settings_to_system, [
+      '',
+      '',
+      'printable_area;printable_height',
+    ]);
+    assert.ok(Object.keys(project).every((key) => !key.includes('gcode')));
+    const manifest = readJSON(entry(files, 'Metadata/assembly.json'));
+    assert.equal(manifest.printerPresetId, id);
+    assert.equal(record(manifest.slicerPreset).fallback, false);
+    const bundle = readZip(printBundle(result, id));
+    assert.deepEqual(entry(bundle, 'boxfinity.3mf'), project3MF(result, id));
+    assert.match(
+      new TextDecoder().decode(entry(bundle, 'README.txt')),
+      new RegExp(`Bambu Lab ${machine}`),
+    );
+  }
+});
+
+test('custom, stale and unsupported selections use a real fallback without changing XYZ or geometry', () => {
+  const result = design(cfg, layout);
+  const before = structuredClone(result);
+  const baseline = readZip(project3MF(result));
+  for (const id of [undefined, 'unknown', 'bambu-a1', 'snapmaker-u1']) {
+    const files = readZip(project3MF(result, id));
+    const project = readJSON(entry(files, 'Metadata/project_settings.config'));
+    assert.equal(project.printer_settings_id, 'Bambu Lab X1 Carbon 0.4 nozzle');
+    assert.deepEqual(project.printable_area, ['0x0', '330x0', '330x320', '0x320']);
+    assert.equal(project.printable_height, '325');
+    assert.deepEqual(entry(files, '3D/3dmodel.model'), entry(baseline, '3D/3dmodel.model'));
+    assert.deepEqual(
+      entry(files, 'Metadata/model_settings.config'),
+      entry(baseline, 'Metadata/model_settings.config'),
+    );
+    assert.equal(
+      record(readJSON(entry(files, 'Metadata/assembly.json')).slicerPreset).fallback,
+      true,
+    );
+  }
+  const u1 = printerPreset('snapmaker-u1');
+  assert.ok(u1);
+  const unsupported = design(u1.volume, [{ id: 1, col: 0, row: 0, cols: 1, rows: 1 }]);
+  const files = readZip(printBundle(unsupported, u1.id));
+  const manifest = readJSON(entry(files, 'assembly.json'));
+  assert.equal(manifest.printerPresetId, u1.id);
+  assert.equal(record(manifest.slicerPreset).fallback, true);
+  assert.match(new TextDecoder().decode(entry(files, 'README.txt')), /兼容兜底.*X1 Carbon/);
+  assert.deepEqual(result, before);
 });
 
 test('single-plate projects and selected groups keep all their parts', () => {
