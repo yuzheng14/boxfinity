@@ -94,6 +94,8 @@ PORT=4175 npm run dev
 
 各会话选择不同端口，通过 PR 交付变更，由仓库所有者人工合入 main。代理完成检查与审查说明后交付 PR 链接，合并由仓库所有者操作。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
 
+提交信息和 PR 标题使用 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)，例如 `fix(printing): preserve printable orientation`；scope 可选。PR 标题应描述最终变更，方便审查和人工 squash 合并。
+
 ## 许可证
 
 项目使用 [MIT](./LICENSE)。Three.js 同为 MIT 协议，其许可证随静态构建放入 `dist/vendor/three/LICENSE`。

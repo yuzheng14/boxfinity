@@ -1,3 +1,5 @@
+<!-- PR 标题遵循 Conventional Commits：<type>[optional scope][!]: <description>。 -->
+
 ## 解决的问题
 
 ## 变更范围
