@@ -27,9 +27,13 @@ npm run typecheck
 ```sh
 npm run lint
 npm run lint:fix
+npm run format
+npm run format:check
 ```
 
 Oxlint 检查源码、测试与 Vite 配置中的正确性、React/Hooks 和 TypeScript 问题；CI 在测试前执行 lint，warning 也会使任务失败。`lint:fix` 仅应用安全修复。类型检查仍由 `npm run typecheck` 和构建前的 TypeScript 检查负责。
+
+Oxfmt 统一 TypeScript/TSX、CSS、HTML、配置和文档格式，源码沿用单引号，其余采用默认格式。`format` 写入文件，`format:check` 只检查；CI 在 lint 前检查格式。生成目录沿用 `.gitignore`，npm 锁文件保持 npm 生成的内容。
 
 ## 工作流程
 

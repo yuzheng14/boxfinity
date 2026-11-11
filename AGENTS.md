@@ -23,8 +23,9 @@
 ## 代码检查
 
 - 已批准开发依赖 `oxlint@^1.93.0` 及其正常传递依赖和平台二进制。`npm run lint` 检查源码、测试与配置，warning 也使检查失败；`npm run lint:fix` 只应用安全修复。
+- 已批准开发依赖 `oxfmt@^0.78.0`、tinypool 和工具自带打包依赖及平台二进制。`npm run format` 写入统一格式，`npm run format:check` 只检查；保持 `.oxfmtrc.json` 的格式约定。生成的 `package-lock.json` 不参与手工格式化，其他忽略沿用 `.gitignore`。
 - `.oxlintrc.json` 使用正确性规则、React/Hooks 与 TypeScript 规则。保持与现有 `strict` 类型检查互补；不要通过批量禁用规则或忽略注释掩盖实际问题。
-- 提交前运行 `npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。提交和 PR 标题遵循 Conventional Commits，PR 由仓库所有者合并。
+- 提交前运行 `npm run format:check`、`npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。提交和 PR 标题遵循 Conventional Commits，PR 由仓库所有者合并。
 
 ## TypeScript 与 React 组件边界
 

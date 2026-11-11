@@ -3,33 +3,41 @@ import type { DrawerPart, FramePart, Part, Vec3, MeshData } from './types.ts';
 // Meshes share vertices and use outward winding. Dimensions use print coordinates.
 export function drawerMesh(part: DrawerPart, segments = 8): MeshData {
   const { width: w, depth: d, height: h, wall: t, base: b, radius: r } = part;
-  const notch = Math.max(0, Math.min(14, w * .16, (w - 2 * r) / 2 - 1, h * .27));
+  const notch = Math.max(0, Math.min(14, w * 0.16, (w - 2 * r) / 2 - 1, h * 0.27));
   const contour = (inset: number, radius: number) => {
     const points: Vec3[] = [];
-    const corners = [[w - inset - radius, d - inset - radius], [inset + radius, d - inset - radius], [inset + radius, inset + radius], [w - inset - radius, inset + radius]];
+    const corners = [
+      [w - inset - radius, d - inset - radius],
+      [inset + radius, d - inset - radius],
+      [inset + radius, inset + radius],
+      [w - inset - radius, inset + radius],
+    ];
     corners.forEach(([cx, cy], corner) => {
       for (let i = 0; i <= segments; i++) {
-        const angle = (corner * 90 + i * 90 / segments) * Math.PI / 180;
+        const angle = ((corner * 90 + (i * 90) / segments) * Math.PI) / 180;
         points.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle), h]);
       }
       // Front edge, y = 0. The same sampled U-shaped finger recess is used
       // on the outside and inside so the front wall remains a closed shell.
       if (corner === 2 && notch >= 3) {
         for (let i = 0; i <= 16; i++) {
-          const angle = Math.PI - i * Math.PI / 16;
+          const angle = Math.PI - (i * Math.PI) / 16;
           points.push([w / 2 + notch * Math.cos(angle), inset, h - notch * Math.sin(angle)]);
         }
       }
     });
     return points;
   };
-  const outer = contour(0, r), inner = contour(t, r - t), n = outer.length;
+  const outer = contour(0, r),
+    inner = contour(t, r - t),
+    n = outer.length;
   const vertices: Vec3[] = [
     ...outer.map(([x, y]): Vec3 => [x, y, 0]),
     ...outer,
     ...inner,
     ...inner.map(([x, y]): Vec3 => [x, y, b]),
-    [w / 2, d / 2, 0], [w / 2, d / 2, b],
+    [w / 2, d / 2, 0],
+    [w / 2, d / 2, b],
   ];
   const triangles: MeshData['triangles'] = [];
   const quad = (a: number, b: number, c: number, d: number) => triangles.push([a, b, c], [a, c, d]);
@@ -47,11 +55,23 @@ export function drawerMesh(part: DrawerPart, segments = 8): MeshData {
 // print X/Y = cabinet width/height; print Z = cabinet depth. No roof bridging.
 export function frameMesh(part: FramePart): MeshData {
   const { width: w, depth: d, height: h, wall: t } = part;
-  const outer = [[0, 0], [w, 0], [w, d], [0, d]];
-  const inner = [[t, t], [w - t, t], [w - t, d - t], [t, d - t]];
+  const outer = [
+    [0, 0],
+    [w, 0],
+    [w, d],
+    [0, d],
+  ];
+  const inner = [
+    [t, t],
+    [w - t, t],
+    [w - t, d - t],
+    [t, d - t],
+  ];
   const vertices: Vec3[] = [
-    ...outer.map(([x, y]): Vec3 => [x, y, 0]), ...outer.map(([x, y]): Vec3 => [x, y, h]),
-    ...inner.map(([x, y]): Vec3 => [x, y, h]), ...inner.map(([x, y]): Vec3 => [x, y, 0]),
+    ...outer.map(([x, y]): Vec3 => [x, y, 0]),
+    ...outer.map(([x, y]): Vec3 => [x, y, h]),
+    ...inner.map(([x, y]): Vec3 => [x, y, h]),
+    ...inner.map(([x, y]): Vec3 => [x, y, 0]),
   ];
   const triangles: MeshData['triangles'] = [];
   const quad = (a: number, b: number, c: number, d: number) => triangles.push([a, b, c], [a, c, d]);
@@ -64,12 +84,18 @@ export function frameMesh(part: FramePart): MeshData {
   }
   return { vertices, triangles };
 }
-export const partMesh = (part: Part): MeshData => part.type === 'frame' ? frameMesh(part) : drawerMesh(part);
+export const partMesh = (part: Part): MeshData =>
+  part.type === 'frame' ? frameMesh(part) : drawerMesh(part);
 export function meshVolume(mesh: MeshData) {
   let volume = 0;
   for (const [i, j, k] of mesh.triangles) {
-    const a = mesh.vertices[i], b = mesh.vertices[j], c = mesh.vertices[k];
-    volume += a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+    const a = mesh.vertices[i],
+      b = mesh.vertices[j],
+      c = mesh.vertices[k];
+    volume +=
+      a[0] * (b[1] * c[2] - b[2] * c[1]) +
+      a[1] * (b[2] * c[0] - b[0] * c[2]) +
+      a[2] * (b[0] * c[1] - b[1] * c[0]);
   }
   return volume / 6;
 }

@@ -1,11 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc",
-    "react"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
   "categories": {
     "correctness": "error"
   },
@@ -22,24 +17,16 @@
     "typescript/no-explicit-any": "error",
     "typescript/ban-ts-comment": "error"
   },
-  "ignorePatterns": [
-    "dist/**",
-    "artifacts/**"
-  ],
+  "ignorePatterns": ["dist/**", "artifacts/**"],
   "overrides": [
     {
-      "files": [
-        "src/**/*.{ts,tsx}"
-      ],
+      "files": ["src/**/*.{ts,tsx}"],
       "env": {
         "browser": true
       }
     },
     {
-      "files": [
-        "tests/**/*.mjs",
-        "vite.config.mjs"
-      ],
+      "files": ["tests/**/*.mjs", "vite.config.mjs"],
       "env": {
         "node": true
       }
