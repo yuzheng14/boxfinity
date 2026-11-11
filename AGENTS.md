@@ -16,8 +16,15 @@
 - 开始前执行 `git status`，说明本次负责的功能与文件范围。提交保持单一目标，避免夹带其他会话的变更。
 - 例：`git fetch origin`，然后 `git worktree add ../boxfinity-<任务名> -b feat/<任务名> origin/main`。
 - 各 worktree 单独安装锁定依赖，并使用独立端口，例如 `PORT=4175 npm run dev`。不要停止其他会话的服务。
+- **PR 由仓库所有者人工合并。代理完成实现、验证和 PR 交付后停止，不得擅自合并 PR、启用自动合并或加入合并队列，也不得直接推送 main 绕过 PR。批准依赖、部署或上传源码不包含合并授权。**
 - 通过 PR 合入 main，不覆盖远端历史。相互独立的任务分别开 PR；存在依赖的多层 PR 按 GitHub 原生 Stacked PR 约定组织，明确各层增量与审查顺序。
 - PR 描述写清问题、变更范围、验证结果和具体 review 重点。UI 变更必须在对应 PR 评论中实际上传运行界面的截图，确认图片可见并提供评论链接；本地路径不算完成。
+
+## 提交与 PR 标题
+
+- 提交信息遵循 [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)，格式为 `<type>[optional scope][!]: <description>`；scope 可选，类型与说明应准确描述该次变更。
+- 常见类型为 `feat`、`fix`、`refactor`、`build`、`ci`、`docs`、`test`、`perf`、`style`、`chore`。破坏兼容的变更使用 `!` 或 `BREAKING CHANGE:` 页脚明确说明。
+- PR 标题也使用同一格式，并描述最终变更范围，便于人工 squash 合并时保留规范。不要为已符合格式的提交无故改写历史。
 
 ## 模型与交互边界
 
