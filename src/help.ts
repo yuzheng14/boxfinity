@@ -1,5 +1,5 @@
 // The popover lives in the browser's top layer, outside the scrollable parameter panel.
-export function setupMeasurementHelp({ trigger, panel, sidebar, scroller, onToggle }: {
+export function setupHelpTooltip({ trigger, panel, sidebar, scroller, onToggle }: {
   trigger: HTMLButtonElement | null; panel: HTMLDivElement | null;
   sidebar: HTMLElement | null; scroller: HTMLDivElement | null; onToggle: (open: boolean) => void;
 }) {
@@ -23,6 +23,8 @@ export function setupMeasurementHelp({ trigger, panel, sidebar, scroller, onTogg
   }
   function open() {
     clearTimeout(closeTimer);
+    // All parameter cards share one slot, including hover and keyboard openings.
+    document.dispatchEvent(new CustomEvent('parameter-help-open', { detail: card }));
     if (!isOpen()) card.showPopover();
     onToggle(true); position();
   }
@@ -47,6 +49,13 @@ export function setupMeasurementHelp({ trigger, panel, sidebar, scroller, onTogg
   listen(document, 'pointerdown', (event) => { if (event.target instanceof Node && !button.contains(event.target) && !card.contains(event.target)) close(); });
   listen(document, 'focusin', (event) => { if (event.target instanceof Node && !button.contains(event.target) && !card.contains(event.target)) close(); });
   listen(document, 'keydown', (event) => { if (event.key === 'Escape' && isOpen()) { event.preventDefault(); close(); } });
+  const anotherHelpOpened = (event: Event) => {
+    if (event instanceof CustomEvent && event.detail !== card) close();
+  };
+  document.addEventListener('parameter-help-open', anotherHelpOpened);
+  cleanups.push(() => document.removeEventListener('parameter-help-open', anotherHelpOpened));
+  const details = button.closest('details');
+  if (details) listen(details, 'toggle', () => { if (!details.open) close(); });
   listen(scroller, 'scroll', close, { passive: true });
   listen(window, 'resize', () => { if (isOpen()) position(); });
   return () => {

@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import type { SettingKey } from '../types.ts';
 import type { EditorError } from '../editor.ts';
 import type { EditorControls } from '../use-editor.ts';
@@ -6,11 +6,13 @@ import { useMemo } from 'react';
 import { display, recommendGrids } from '../core.ts';
 import { preferredPrintVolume } from '../printing.ts';
 import { MeasurementHelp } from './MeasurementHelp.tsx';
+import { StructureHelp } from './StructureHelp.tsx';
+import type { StructureKey } from './StructureHelp.tsx';
 import { Icon } from './Icons.tsx';
 
-type Field = readonly [SettingKey, string, string | null, number, number, number?];
+type Field<Key extends SettingKey = SettingKey> = readonly [Key, string, string | null, number, number, number?];
 interface NumberFieldProps {
-  field: Field; draft: EditorControls['draft']; error: EditorError | null;
+  help?: ReactNode; field: Field; draft: EditorControls['draft']; error: EditorError | null;
   onChange: EditorControls['changeField']; onApply: EditorControls['applyNow'];
 }
 interface ParametersProps extends EditorControls {
@@ -23,19 +25,19 @@ const cabinetFields: Field[] = [
   ['width', '宽度', 'W', 80, 3000], ['height', '高度', 'H', 80, 3000], ['depth', '深度', 'D', 40, 1000],
 ];
 const printerFields: Field[] = [['bedWidth', 'X', null, 50, 1500], ['bedDepth', 'Y', null, 50, 1500], ['bedHeight', 'Z', null, 50, 1500]];
-const structureFields: Field[] = [
+const structureFields: Field<StructureKey>[] = [
   ['frameWall', '框套壁厚', 'mm', 1.2, 8], ['wall', '盒子壁厚', 'mm', .8, 5], ['base', '盒子底厚', 'mm', .8, 5],
   ['fit', '抽拉间隙 / 侧', 'mm', .2, 2], ['edge', '柜边间隙', 'mm', .5, 10],
   ['jointGap', '框套间隙', 'mm', .2, 2], ['radius', '盒子圆角', 'mm', 2, 12],
 ];
-function NumberField({ field, draft, error, onChange, onApply }: NumberFieldProps) {
+function NumberField({ field, help, draft, error, onChange, onApply }: NumberFieldProps) {
   const [name, label, unit, min, max, step = .1] = field;
-  return <label>{label}<div className="input-shell">
-    <input name={name} type="number" min={min} max={max} step={step} value={draft[name]} required
+  return <div className="number-field">{help ?? <label htmlFor={`parameter-${name}`}>{label}</label>}<div className="input-shell">
+    <input id={`parameter-${name}`} aria-label={label} name={name} type="number" min={min} max={max} step={step} value={draft[name]} required
       aria-invalid={error?.field === name || undefined}
       onChange={(event) => onChange(name, event.target.value)} onBlur={onApply} />
     {unit && <span>{unit}</span>}
-  </div></label>;
+  </div></div>;
 }
 export function Parameters({ editor, draft, changeField, applyNow, run, sidebarRef, scrollRef }: ParametersProps) {
   const { result, error } = editor, { cfg, grid } = result;
@@ -81,7 +83,8 @@ export function Parameters({ editor, draft, changeField, applyNow, run, sidebarR
     </section>
     <details className="parameter-section structure-settings">
       <summary>结构与间隙<Icon name="plus" /></summary>
-      <div className="fields two">{structureFields.map(field)}</div>
+      <div className="fields two">{structureFields.map((entry) => <NumberField key={entry[0]} field={entry} draft={draft} error={error} onChange={changeField} onApply={applyNow}
+        help={<StructureHelp name={entry[0]} sidebarRef={sidebarRef} scrollRef={scrollRef} />} />)}</div>
     </details>
     <button className="sr-only" type="submit">更新参数</button>
   </form>;

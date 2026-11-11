@@ -46,7 +46,7 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .fields { display: grid; gap: 11px; }
 .fields.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .fields.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.fields label { display: block; min-width: 0; font-size: 10px; color: #8d8e90; }
+.fields label, .number-field { display: block; min-width: 0; font-size: 10px; color: #8d8e90; }
 .input-shell { display: flex; align-items: center; height: 35px; margin-top: 8px; border: 1px solid #dededb; border-radius: 5px; overflow: hidden; background: #fff; }
 .input-shell:focus-within { border-color: #9f8f7c; box-shadow: 0 0 0 2px #aa8a6310; }
 .input-shell input { min-width: 0; width: 100%; height: 100%; padding: 0 0 0 10px; background: none; border: 0; outline: 0; color: #4d5052; font: 12px var(--mono); }
@@ -73,6 +73,24 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .measurement-axes > div { display:flex; gap:13px; }
 .measurement-axes dt { flex-shrink:0; font-weight:550; color:#65665f; }
 .measurement-axes dd { margin:0; color:#7d8079; }
+.structure-help .help-description { margin-top:9px; color:#747970; line-height:1.8; }
+.number-field > .heading-help { font-size:10px; color:#8d8e90; text-align:left; }
+.structure-mesh polygon { stroke:none; }
+.structure-mesh .diagram-top { fill:#eeeee9; }
+.structure-mesh .diagram-front { fill:#e2e3dd; }
+.structure-mesh .diagram-side { fill:#d4d6ce; }
+.structure-mesh .diagram-highlight, .diagram-section { fill:#e7cfa9; }
+.diagram-outline { fill:none; stroke:#aeb2a6; stroke-width:.7; }
+.diagram-section { stroke:#b18b53; stroke-width:.7; }
+.diagram-gap { fill:#e7cfa9; fill-opacity:.7; stroke:#b18b53; stroke-width:.8; }
+.diagram-dimension { fill:none; stroke:#a57841; stroke-width:1.3; }
+.diagram-callout { fill:none; stroke:#a57841; stroke-width:.8; }
+.diagram-callout text { fill:#916630; stroke:#fff; stroke-width:3px; paint-order:stroke; font-size:11px; }
+.diagram-cabinet polygon { fill:#f6f6f2; stroke:#c8cbc2; stroke-width:.8; }
+.diagram-cabinet-edge { fill:none; stroke:#c8cbc2; stroke-width:.8; }
+.diagram-radius { fill:none; stroke:#a57841; stroke-width:2.5; }
+.diagram-center { fill:#a57841; stroke:none; }
+.diagram-scale { fill:#9c9f96; stroke:none; font-size:8px; }
 .measurement-help > p { margin:15px 0 0; padding-top:13px; border-top:1px solid #eeeee9; color:#8b8d84; font-size:10px; line-height:1.8; }
 .printer-extra { margin-top:16px; padding-top:13px; border-top:1px solid #eeeee9; }
 .printer-extra summary { display:flex; align-items:center; gap:8px; cursor:pointer; list-style:none; color:#898c87; font-size:10px; }
@@ -244,7 +262,7 @@ dialog > p { font-size: 11px; line-height: 1.8; color: #9c9c94; }
   .grid-candidates { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .grid-option { padding:7px 3px; }
   .custom-grid { margin-top:0; }
-  .custom-grid label { display: flex; align-items: center; justify-content: space-between; gap: 9px; white-space: nowrap; }
+  .custom-grid .number-field { display: flex; align-items: center; justify-content: space-between; gap: 9px; white-space: nowrap; }
   .custom-grid .input-shell { width: 80px; height: 29px; margin-top: 0; }
   .viewport-toolbar { min-height: 43px; padding: 6px 12px; }
   .view-button svg { display: inline; }

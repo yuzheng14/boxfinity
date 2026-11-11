@@ -1,20 +1,8 @@
-import type { RefObject } from 'react';
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { setupMeasurementHelp } from '../help.ts';
+import { HelpTooltip } from './HelpTooltip.tsx';
+import type { HelpContext } from './HelpTooltip.tsx';
 
-export function MeasurementHelp({ sidebarRef, scrollRef }: { sidebarRef: RefObject<HTMLElement | null>; scrollRef: RefObject<HTMLDivElement | null> }) {
-  const triggerRef = useRef<HTMLButtonElement | null>(null), panelRef = useRef<HTMLDivElement | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => setupMeasurementHelp({
-    trigger: triggerRef.current, panel: panelRef.current,
-    sidebar: sidebarRef.current, scroller: scrollRef.current, onToggle: setExpanded,
-  }), []);
-  return <>
-    <button ref={triggerRef} id="measurement-help-button" className="heading-help" type="button"
-      aria-label="柜内净尺寸：查看测量方法" aria-controls="measurement-help" aria-expanded={expanded}
-      aria-describedby="measurement-help">柜内净尺寸</button>
-    {createPortal(<div ref={panelRef} id="measurement-help" className="measurement-help" popover="manual" role="tooltip">
+export function MeasurementHelp(props: HelpContext) {
+  return <HelpTooltip id="measurement-help" label="柜内净尺寸" action="查看测量方法" {...props}>
     <strong>测量柜内可用空间</strong>
     <svg className="measurement-diagram" viewBox="0 0 320 185" role="img" aria-label="柜体内部测量示意：W 为左右内壁之间的宽度，H 为底板至顶板的高度，D 为关门后内侧至背板的深度。">
       <defs><marker id="measure-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M7 4 1 1v6Z"/></marker></defs>
@@ -31,6 +19,5 @@ export function MeasurementHelp({ sidebarRef, scrollRef }: { sidebarRef: RefObje
     </svg>
     <dl className="measurement-axes"><div><dt>宽 W</dt><dd>左右两侧内壁之间的距离。</dd></div><div><dt>高 H</dt><dd>底板上表面到顶板下表面的距离。</dd></div><div><dt>深 D</dt><dd>柜门关闭后的内侧到背板的距离。</dd></div></dl>
     <p>避开铰链、门框等凸起，多测几处，取最小值。直接填写实测值，柜边间隙会另行预留。</p>
-  </div>, document.body)}
-  </>;
+  </HelpTooltip>;
 }
