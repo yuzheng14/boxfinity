@@ -1,13 +1,16 @@
-import { Vector2, Vector3, Plane, Raycaster, MathUtils } from 'three';
+import type { Box3 } from 'three';
+import type { Settings, Grid, Vec2, Vec3 } from './types.ts';
+import type { PreviewCamera } from './view-types.ts';
+import { Vector2, Vector3, Plane, Raycaster, MathUtils, PerspectiveCamera } from 'three';
 
-export function boxCorners(box){
+export function boxCorners(box: Box3){
   const points=[];
   for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(new Vector3(x,y,z));
   return points;
 }
 
 // Fit every corner, including its depth, rather than using a 2D bounding radius.
-export function fitViewCamera(camera,box,width,height,{direction,zoom=1}={}){
+export function fitViewCamera(camera: PreviewCamera,box: Box3,width: number,height: number,{direction,zoom=1}: { direction: Vector3; zoom?: number }){
   const center=box.getCenter(new Vector3()),size=box.getSize(new Vector3());
   const diagonal=Math.max(size.length(),1),eye=direction.clone().normalize();
   camera.position.copy(center).add(eye);camera.lookAt(center);camera.updateMatrixWorld(true);
@@ -17,7 +20,7 @@ export function fitViewCamera(camera,box,width,height,{direction,zoom=1}={}){
   const safeX=Math.max(.3,(width-120)/width),safeY=Math.max(.3,(height-130)/height);
   const corners=boxCorners(box).map((point)=>point.sub(center));
   let distance;
-  if(camera.isPerspectiveCamera){
+  if(camera instanceof PerspectiveCamera){
     camera.aspect=aspect;
     const tanY=Math.tan(MathUtils.degToRad(camera.fov/2)),tanX=tanY*aspect;
     distance=Math.max(...corners.flatMap((p)=>[
@@ -39,12 +42,12 @@ export function fitViewCamera(camera,box,width,height,{direction,zoom=1}={}){
   return {center,distance};
 }
 
-export function projectPoint(camera,point,width,height){
+export function projectPoint(camera: PreviewCamera,point: Vec3,width: number,height: number): Vec2{
   const p=new Vector3(...point).project(camera);
   return [(p.x+1)*width/2,(1-p.y)*height/2];
 }
 
-export function gridCellAt(camera,x,y,width,height,cfg,grid,clamp=false){
+export function gridCellAt(camera: PreviewCamera,x: number,y: number,width: number,height: number,cfg: Settings,grid: Grid,clamp=false){
   const raycaster=new Raycaster();
   raycaster.setFromCamera(new Vector2(x/width*2-1,1-y/height*2),camera);
   const plane=new Plane(new Vector3(0,-1,0),cfg.edge-.8);

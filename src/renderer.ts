@@ -1,3 +1,6 @@
+import type { Material } from 'three';
+import type { DesignResult, Part, GridRectangle, Vec2, Vec3 } from './types.ts';
+import type { CameraKey, PreviewCamera, View, Tool, PlateMode, Ghost, WheelInput } from './view-types.ts';
 import {
   WebGLRenderer, Scene, Group, PerspectiveCamera, OrthographicCamera,
   Vector3, Box3, Mesh, BoxGeometry, MeshBasicMaterial, BufferGeometry,
@@ -5,14 +8,14 @@ import {
   NoToneMapping, SRGBColorSpace,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { display } from './core.mjs';
-import { partFits } from './printing.mjs';
-import { partGeometry, platePartGeometry } from './view-geometry.mjs';
-import { fitViewCamera, projectPoint, gridCellAt } from './view-camera.mjs';
-import { wheelAction } from './view-input.mjs';
+import { display } from './core.ts';
+import { partFits } from './printing.ts';
+import { partGeometry, platePartGeometry } from './view-geometry.ts';
+import { fitViewCamera, projectPoint, gridCellAt } from './view-camera.ts';
+import { wheelAction } from './view-input.ts';
 
 const svgNS='http://www.w3.org/2000/svg';
-const svg=(name,attrs,text)=>{
+const svg=<K extends keyof SVGElementTagNameMap>(name: K,attrs: Record<string,string | number>,text?: string)=>{
   const el=document.createElementNS(svgNS,name);
   for(const [key,value] of Object.entries(attrs))el.setAttribute(key,String(value));
   if(text!==undefined)el.textContent=text;
@@ -21,7 +24,21 @@ const svg=(name,attrs,text)=>{
 const directions={cabinet:new Vector3(.55,-1,.48),plate:new Vector3(.55,-1,1.05),front:new Vector3(0,-1,0),top:new Vector3(0,0,1)};
 
 export class CabinetPreview {
-  constructor(canvas,overlay){
+  canvas: HTMLCanvasElement;
+  overlay: SVGSVGElement;
+  view: View; tool: Tool; selected: number | null; pull: boolean;
+  plateIndex: number; plateMode: PlateMode; ghost: Ghost | null;
+  scene: Scene; content: Group; renderer: WebGLRenderer;
+  cameras: Record<CameraKey, PreviewCamera>;
+  activeCamera: PreviewCamera;
+  orbits: Map<PreviewCamera, OrbitControls>;
+  observer: ResizeObserver;
+  result?: DesignResult;
+  bounds?: Box3;
+  cameraState?: { cw: number; ch: number };
+  worldWidth = 0; worldDepth = 0; worldHeight = 0;
+  adjusting = false;
+  constructor(canvas: HTMLCanvasElement,overlay: SVGSVGElement){
     this.canvas=canvas;this.overlay=overlay;this.view='3d';this.tool='draw';
     this.selected=null;this.pull=true;this.plateIndex=0;this.plateMode='isometric';this.ghost=null;
     this.scene=new Scene();this.content=new Group();this.scene.add(this.content);
@@ -33,48 +50,52 @@ export class CabinetPreview {
     this.cameras={cabinet:new PerspectiveCamera(36,1,.1,10000),plate:new PerspectiveCamera(36,1,.1,10000),front:new OrthographicCamera(),top:new OrthographicCamera()};
     for(const camera of Object.values(this.cameras))camera.up.set(0,0,1);
     this.cameras.top.up.set(0,1,0);
-    this.activeCamera=this.cameras.cabinet;this.orbits=new Map();
-    for(const key of ['cabinet','plate','front','top']){
+    this.activeCamera=this.cameras.cabinet;this.orbits=new Map<PreviewCamera, OrbitControls>();
+    for(const key of ['cabinet','plate','front','top'] as const){
       const camera=this.cameras[key],controls=new OrbitControls(camera,canvas);
       controls.enabled=false;controls.enablePan=false;controls.enableZoom=false;controls.enableDamping=false;
-      controls.enableRotate=camera.isPerspectiveCamera;
-      if(camera.isPerspectiveCamera){controls.minPolarAngle=.12;controls.maxPolarAngle=Math.PI/2-.1;}
+      controls.enableRotate=camera instanceof PerspectiveCamera;
+      if(camera instanceof PerspectiveCamera){controls.minPolarAngle=.12;controls.maxPolarAngle=Math.PI/2-.1;}
       if(key==='cabinet'){controls.minAzimuthAngle=-1.25;controls.maxAzimuthAngle=1.25;}
       controls.addEventListener('change',()=>{if(this.activeCamera===camera&&!this.adjusting)this.render();});
-      controls.addEventListener('start',()=>canvas.parentElement.classList.add('dragging'));
-      controls.addEventListener('end',()=>canvas.parentElement.classList.remove('dragging'));
+      controls.addEventListener('start',()=>canvas.parentElement?.classList.add('dragging'));
+      controls.addEventListener('end',()=>canvas.parentElement?.classList.remove('dragging'));
       this.orbits.set(camera,controls);
     }
     this.observer=new ResizeObserver(()=>this.render());this.observer.observe(canvas);
   }
-  get controls(){return this.orbits.get(this.activeCamera);}
+  get controls(): OrbitControls {
+    const controls=this.orbits.get(this.activeCamera);
+    if(!controls)throw new Error('相机控制器尚未初始化');
+    return controls;
+  }
   get orbitEnabled(){return !!this.controls?.enabled;}
   get zoom(){
     const camera=this.activeCamera;
     if(!camera.userData.framed)return 1;
-    return camera.isPerspectiveCamera?camera.userData.fitDistance/camera.position.distanceTo(this.controls.target):camera.zoom;
+    return camera instanceof PerspectiveCamera?(camera.userData.fitDistance ?? 1)/camera.position.distanceTo(this.controls.target):camera.zoom;
   }
-  update(result){this.result=result;this.plateIndex=Math.max(0,Math.min(this.plateIndex,result.plates.length-1));this.rebuild();}
-  setView(view){this.view=view;this.ghost=null;this.rebuild();}
-  setTool(tool){this.tool=tool;this.updateControls();}
-  select(id){this.selected=id;this.rebuild();}
-  setPlateView(mode){this.plateMode=mode;this.frameCamera();this.render();}
+  update(result: DesignResult){this.result=result;this.plateIndex=Math.max(0,Math.min(this.plateIndex,result.plates.length-1));this.rebuild();}
+  setView(view: View){this.view=view;this.ghost=null;this.rebuild();}
+  setTool(tool: Tool){this.tool=tool;this.updateControls();}
+  select(id: number | null){this.selected=id;this.rebuild();}
+  setPlateView(mode: PlateMode){this.plateMode=mode;this.frameCamera();this.render();}
   updateControls(){
-    for(const [camera,controls] of this.orbits)controls.enabled=camera===this.activeCamera&&camera.isPerspectiveCamera&&(this.view==='plate'||this.tool==='orbit');
+    for(const [camera,controls] of this.orbits)controls.enabled=camera===this.activeCamera&&camera instanceof PerspectiveCamera&&(this.view==='plate'||this.tool==='orbit');
   }
-  handleWheel(event){
+  handleWheel(event: WheelInput){
     const action=wheelAction(event,this.canvas.clientWidth,this.canvas.clientHeight);
     if(action.type==='zoom'){this.setZoom(this.zoom*action.factor);return;}
-    if(!this.activeCamera.isPerspectiveCamera)return;
+    if(!(this.activeCamera instanceof PerspectiveCamera))return;
     this.adjusting=true;
     this.controls.rotateLeft(-action.x*.003);
     this.controls.rotateUp(-action.y*.003);
     this.adjusting=false;this.render();
   }
-  setZoom(value){
+  setZoom(value: number){
     const zoom=Math.max(.35,Math.min(4,value)),camera=this.activeCamera;
-    if(camera.isPerspectiveCamera){
-      camera.position.sub(this.controls.target).normalize().multiplyScalar(camera.userData.fitDistance/zoom).add(this.controls.target);
+    if(camera instanceof PerspectiveCamera){
+      camera.position.sub(this.controls.target).normalize().multiplyScalar((camera.userData.fitDistance ?? 1)/zoom).add(this.controls.target);
       this.controls.update();
     }else{camera.zoom=zoom;camera.updateProjectionMatrix();this.controls.update();}
     this.render();
@@ -86,8 +107,13 @@ export class CabinetPreview {
     this.frameCamera();this.render();
   }
   disposeContent(){
-    const geometries=new Set(),materials=new Set();
-    this.content.traverse((object)=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});
+    const geometries=new Set<BufferGeometry>(),materials=new Set<Material>();
+    this.content.traverse((object)=>{
+      if(object instanceof Mesh || object instanceof LineSegments){
+        geometries.add(object.geometry);
+        for(const material of Array.isArray(object.material)?object.material:[object.material])materials.add(material);
+      }
+    });
     this.content.clear();for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();
   }
   dispose(){
@@ -97,16 +123,17 @@ export class CabinetPreview {
     this.renderer.dispose();
     this.overlay.replaceChildren();
   }
-  addLines(segments,color,opacity=1){
+  addLines(segments: Vec3[][],color: number,opacity=1){
     const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(segments.flat(2),3));
     const material=new LineBasicMaterial({color,transparent:opacity<1,opacity,depthWrite:false});
     this.content.add(new LineSegments(geometry,material));
   }
-  addBoard(width,depth,height,x,y,z,color){
+  addBoard(width: number,depth: number,height: number,x: number,y: number,z: number,color: number){
     const mesh=new Mesh(new BoxGeometry(width,depth,height),new MeshBasicMaterial({color}));
     mesh.position.set(x,y,z);this.content.add(mesh);
   }
-  addPart(part,geometry){
+  addPart(part: Part,geometry: BufferGeometry){
+    if(!this.result)return;
     const selected=part.boxId===this.selected;
     const warning=part.print?.needsSupport||part.print?.usesReservedMargin;
     const fits=partFits(part,this.result.cfg);
@@ -128,7 +155,7 @@ export class CabinetPreview {
     this.bounds=new Box3(new Vector3(0,!isPlate&&this.selected!==null&&this.pull?-grid.depth*.55:0,0),new Vector3(w,d,h));
     if(isPlate){
       this.addBoard(w,d,3,w/2,d/2,-2.2,0xe5e8e9);
-      const lines=[];
+      const lines: Vec3[][]=[];
       for(let x=0;x<=w;x+=10)lines.push([[x,0,-.4],[x,d,-.4]]);
       for(let y=0;y<=d;y+=10)lines.push([[0,y,-.4],[w,y,-.4]]);
       this.addLines(lines,0xb5bfc0,.55);
@@ -138,13 +165,13 @@ export class CabinetPreview {
       // A cutaway cabinet: a solid back and floor distinguish the opening from the rear.
       this.addBoard(w,d,3,w/2,d/2,-1.5,0xe5e7e0);
       this.addBoard(w,3,h,w/2,d+1.5,h/2,0xeeeFE9);
-      const corners=[[0,0,0],[w,0,0],[w,0,h],[0,0,h],[0,d,0],[w,d,0],[w,d,h],[0,d,h]];
+      const corners: Vec3[]=[[0,0,0],[w,0,0],[w,0,h],[0,0,h],[0,d,0],[w,d,0],[w,d,h],[0,d,h]];
       this.addLines([[0,1],[1,2],[2,3],[3,0]].map(([a,b])=>[corners[a],corners[b]]),0x8b958b,.85);
       this.addLines([[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].map(([a,b])=>[corners[a],corners[b]]),0xbcc4b9,.7);
-      const gridLines=[];
-      const rectangle=(rect)=>{
+      const gridLines: Vec3[][]=[];
+      const rectangle=(rect: GridRectangle)=>{
         const x=cfg.edge+rect.col*grid.unitWidth,z=cfg.height-cfg.edge-rect.row*grid.unitHeight,y=cfg.edge-.8;
-        const a=[x,y,z],b=[x+rect.cols*grid.unitWidth,y,z],c=[b[0],y,z-rect.rows*grid.unitHeight],e=[x,y,c[2]];
+        const a: Vec3=[x,y,z],b: Vec3=[x+rect.cols*grid.unitWidth,y,z],c: Vec3=[b[0],y,z-rect.rows*grid.unitHeight],e: Vec3=[x,y,c[2]];
         gridLines.push([a,b],[b,c],[c,e],[e,a]);
       };
       for(let row=0;row<grid.rows;row++)for(let col=0;col<grid.cols;col++){
@@ -162,8 +189,8 @@ export class CabinetPreview {
   frameCamera(){
     if(!this.bounds||!this.canvas.clientWidth||!this.canvas.clientHeight)return;
     const key=this.view==='front'?'front':this.view==='plate'?(this.plateMode==='top'?'top':'plate'):'cabinet';
-    const camera=this.activeCamera=this.cameras[key],controls=this.orbits.get(camera),framed=camera.userData.framed;
-    const zoom=framed?(camera.isPerspectiveCamera?camera.userData.fitDistance/camera.position.distanceTo(controls.target):camera.zoom):1;
+    const camera=this.activeCamera=this.cameras[key],controls=this.controls,framed=camera.userData.framed;
+    const zoom=framed?(camera instanceof PerspectiveCamera?(camera.userData.fitDistance ?? 1)/camera.position.distanceTo(controls.target):camera.zoom):1;
     const direction=framed?camera.position.clone().sub(controls.target):directions[key];
     this.adjusting=true;
     const {center,distance}=fitViewCamera(camera,this.bounds,this.canvas.clientWidth,this.canvas.clientHeight,{direction,zoom});
@@ -173,16 +200,18 @@ export class CabinetPreview {
     controls.minZoom=.35;controls.maxZoom=4;controls.update();
     this.adjusting=false;this.updateControls();
   }
-  project(point){return projectPoint(this.activeCamera,point,this.canvas.clientWidth,this.canvas.clientHeight);}
-  cellAt(clientX,clientY,clamp=false){
+  project(point: Vec3){return projectPoint(this.activeCamera,point,this.canvas.clientWidth,this.canvas.clientHeight);}
+  cellAt(clientX: number,clientY: number,clamp=false){
     if(this.view==='plate'||!this.result)return null;
     const rect=this.canvas.getBoundingClientRect();
     return gridCellAt(this.activeCamera,clientX-rect.left,clientY-rect.top,rect.width,rect.height,this.result.cfg,this.result.grid,clamp);
   }
-  rectPoints(rect){
+  rectPoints(rect: GridRectangle){
+    if(!this.result)throw new Error('预览尚未载入设计');
     const {cfg,grid}=this.result,x=cfg.edge+rect.col*grid.unitWidth,z=cfg.height-cfg.edge-rect.row*grid.unitHeight,y=cfg.edge-.8;
     const w=rect.cols*grid.unitWidth,h=rect.rows*grid.unitHeight;
-    return [[x,y,z],[x+w,y,z],[x+w,y,z-h],[x,y,z-h]].map((p)=>this.project(p));
+    const points: Vec3[]=[[x,y,z],[x+w,y,z],[x+w,y,z-h],[x,y,z-h]];
+    return points.map((p)=>this.project(p));
   }
   render(){
     if(!this.result||!this.canvas.clientWidth||!this.canvas.clientHeight)return;
@@ -194,14 +223,16 @@ export class CabinetPreview {
     this.renderer.render(this.scene,this.activeCamera);this.renderOverlay();
   }
   renderOverlay() {
+    if(!this.result||!this.cameraState)return;
     const {cfg,grid,boxes}=this.result,{cw,ch}=this.cameraState;
     this.overlay.setAttribute('viewBox',`0 0 ${cw} ${ch}`);
     const root=document.createDocumentFragment();
-    const label=(text,point,className)=>root.append(svg('text',{x:point[0],y:point[1],class:className,'text-anchor':'middle','dominant-baseline':'middle'},text));
+    const label=(text: string,point: Vec2,className: string)=>root.append(svg('text',{x:point[0],y:point[1],class:className,'text-anchor':'middle','dominant-baseline':'middle'},text));
     if(this.view==='plate'){
       const m=cfg.margin;
       if(m>0){
-        const boundary=[[m,m,0],[cfg.bedWidth-m,m,0],[cfg.bedWidth-m,cfg.bedDepth-m,0],[m,cfg.bedDepth-m,0]].map((p)=>this.project(p));
+        const corners: Vec3[]=[[m,m,0],[cfg.bedWidth-m,m,0],[cfg.bedWidth-m,cfg.bedDepth-m,0],[m,cfg.bedDepth-m,0]];
+        const boundary=corners.map((p)=>this.project(p));
         root.append(svg('polygon',{points:boundary.map((p)=>p.join(',')).join(' '),class:'margin-guide'}));
       }
       for(const item of this.result.plates[this.plateIndex]?.items||[]){

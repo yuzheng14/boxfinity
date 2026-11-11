@@ -1,9 +1,11 @@
+import type { SettingKey } from './types.ts';
+import type { EditorAction } from './editor.ts';
 import { useEffect, useReducer, useRef } from 'react';
-import { createEditor, editorReducer, applyDraft, readSavedDocument, serializeDocument, STORAGE_KEY } from './editor.mjs';
+import { createEditor, editorReducer, applyDraft, readSavedDocument, serializeDocument, STORAGE_KEY } from './editor.ts';
 
 function initialEditor() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
     if (saved) return createEditor(readSavedDocument(saved));
   } catch { /* Storage may be unavailable or contain an incompatible draft. */ }
   return createEditor();
@@ -11,12 +13,12 @@ function initialEditor() {
 export function useEditor() {
   const [editor, dispatch] = useReducer(editorReducer, undefined, initialEditor);
   const draft = editor.draft;
-  const pending = useRef();
+  const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, serializeDocument(editor.document)); } catch { /* Storage is optional. */ }
   }, [editor.document]);
   useEffect(() => () => clearTimeout(pending.current), []);
-  function changeField(name, value) {
+  function changeField(name: SettingKey, value: string) {
     const next = { ...draft, [name]: value };
     dispatch({ type: 'edit-field', values: next });
     clearTimeout(pending.current);
@@ -33,9 +35,11 @@ export function useEditor() {
       return null;
     }
   }
-  function run(action) {
+  function run(action: EditorAction) {
     clearTimeout(pending.current);
     if (['undo', 'redo', 'reset', 'load', 'select'].includes(action.type) || applyNow()) dispatch(action);
   }
   return { editor, draft, changeField, applyNow, run };
 }
+
+export type EditorControls = ReturnType<typeof useEditor>;

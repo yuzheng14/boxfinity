@@ -1,3 +1,5 @@
+export type IconName = 'box' | 'download' | 'close' | 'draw' | 'orbit' | 'front' | 'printer' | 'undo' | 'redo' | 'trash' | 'pull' | 'info' | 'plus' | 'minus' | 'reset';
+
 export function Icons() {
   return (<svg className="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9"/></symbol>
@@ -17,4 +19,4 @@ export function Icons() {
     <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></symbol>
   </defs></svg>);
 }
-export function Icon({ name }) { return <svg aria-hidden="true"><use href={`#i-${name}`} /></svg>; }
+export function Icon({ name }: { name: IconName }) { return <svg aria-hidden="true"><use href={`#i-${name}`} /></svg>; }

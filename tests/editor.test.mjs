@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS } from '../src/core.mjs';
-import { applyDraft, createEditor, editorReducer, readSavedDocument, serializeDocument, settingsDraft } from '../src/editor.mjs';
+import { DEFAULTS } from '../src/core.ts';
+import { applyDraft, createEditor, editorReducer, readSavedDocument, serializeDocument, settingsDraft } from '../src/editor.ts';
 
 const place = (state, rect = { col: 0, row: 0, cols: 3, rows: 2 }) => editorReducer(state, { type: 'place', rect });
 

@@ -6,9 +6,10 @@
   "description": "Browser-local cabinet drawer grid designer with printable drawers and open sleeves.",
   "scripts": {
     "dev": "vite",
-    "test": "node --test tests/*.test.mjs",
-    "build": "vite build",
-    "preview": "vite preview"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -25,7 +26,11 @@
   },
   "homepage": "https://yuzheng14.github.io/boxfinity/",
   "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
     "vite": "^8.3.7"
   }
 }

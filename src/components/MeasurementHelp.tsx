@@ -1,9 +1,10 @@
+import type { RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { setupMeasurementHelp } from '../help.mjs';
+import { setupMeasurementHelp } from '../help.ts';
 
-export function MeasurementHelp({ sidebarRef, scrollRef }) {
-  const triggerRef = useRef(null), panelRef = useRef(null);
+export function MeasurementHelp({ sidebarRef, scrollRef }: { sidebarRef: RefObject<HTMLElement | null>; scrollRef: RefObject<HTMLDivElement | null> }) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null), panelRef = useRef<HTMLDivElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   useEffect(() => setupMeasurementHelp({
     trigger: triggerRef.current, panel: panelRef.current,

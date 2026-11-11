@@ -1,10 +1,13 @@
+import type { ReactNode } from 'react';
+import type { DesignResult, Plate } from '../types.ts';
 import { useEffect, useRef } from 'react';
-import { Icon } from './Icons.jsx';
+import { Icon } from './Icons.tsx';
 
-function Dialog({ id, open, onClose, title, titleId, children }) {
-  const ref = useRef(null);
+function Dialog({ id, open, onClose, title, titleId, children }: { id: string; open: boolean; onClose: () => void; title: string; titleId: string; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement | null>(null);
   useEffect(() => {
     const dialog = ref.current;
+    if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
   }, [open]);
@@ -12,15 +15,15 @@ function Dialog({ id, open, onClose, title, titleId, children }) {
   return <dialog ref={ref} id={id} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); onClose(); }}
     onClose={onClose} onClick={(event) => {
       if (event.target !== ref.current) return;
-      const rect = ref.current.getBoundingClientRect();
+      const rect = event.currentTarget.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
     }}>
     <div className="dialog-heading"><h2 id={titleId}>{title}</h2><button className="icon-button" aria-label="关闭" onClick={onClose}><Icon name="close" /></button></div>
     {children}
   </dialog>;
 }
-export function ExportDialog({ result, onClose, onPlate, onBundle }) {
-  const notices = [];
+export function ExportDialog({ result, onClose, onPlate, onBundle }: { result: DesignResult | null; onClose: () => void; onPlate: (plate: Plate) => void; onBundle: (result: DesignResult) => void }) {
+  const notices: string[] = [];
   if (result?.supportParts.length) notices.push(`${result.supportParts.length} 个零件需换方向，可能需要支撑`);
   if (result?.marginParts.length) notices.push(`${result.marginParts.length} 个零件占用建议边距`);
   const note = notices.length ? `${notices.join('；')}。模型均在最大打印范围内，切片时检查支撑、裙边等额外占位。` : '已保持建议留边，优先盒子底面朝下、框套开口朝上。导入切片软件后选择实际打印机与耗材。';
@@ -36,7 +39,7 @@ export function ExportDialog({ result, onClose, onPlate, onBundle }) {
     </>}
   </Dialog>;
 }
-export function HelpDialog({ open, onClose }) {
+export function HelpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return <Dialog id="help-dialog" open={open} onClose={onClose} title="柜内抽拉收纳" titleId="help-title">
     <ol className="help-steps">
       <li>填写柜内净宽、高、深和打印机范围。</li>

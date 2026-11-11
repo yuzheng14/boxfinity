@@ -1,22 +1,24 @@
-import { display } from '../core.mjs';
-import { Icon } from './Icons.jsx';
+import type { GridShape, DesignedPart, Part } from '../types.ts';
+import type { EditorState, RunEditorAction } from '../editor.ts';
+import { display } from '../core.ts';
+import { Icon } from './Icons.tsx';
 
-export function DrawingControls({ brush, onBrush, disabled, run }) {
+export function DrawingControls({ brush, onBrush, disabled, run }: { brush: GridShape; onBrush: (brush: GridShape) => void; disabled: boolean; run: RunEditorAction }) {
   return <section className="parameter-section drawing-section">
     <h2>绘制盒子 <span>横向 × 纵向</span></h2>
-    <div className="brush-sizes" role="group" aria-label="点击绘制尺寸">{[[1, 1], [1, 2], [2, 1], [3, 2]].map(([cols, rows]) => {
+    <div className="brush-sizes" role="group" aria-label="点击绘制尺寸">{([[1, 1], [1, 2], [2, 1], [3, 2]] as const).map(([cols, rows]) => {
       const active = cols === brush.cols && rows === brush.rows;
       return <button key={`${cols},${rows}`} data-brush={`${cols},${rows}`} className={active ? 'active' : ''} aria-pressed={active} onClick={() => onBrush({ cols, rows })}>{cols} × {rows}</button>;
     })}</div>
     <p className="field-note">拖选可画任意矩形；单击按所选尺寸放置。</p>
-    <div className="layout-actions">{[['fill', '填满空格'], ['example', '示例布局'], ['clear', '清空']].map(([type, label]) => <button key={type} id={`${type}-button`} className="text-button" disabled={disabled} onClick={() => run({ type })}>{label}</button>)}</div>
+    <div className="layout-actions">{([['fill', '填满空格'], ['example', '示例布局'], ['clear', '清空']] as const).map(([type, label]) => <button key={type} id={`${type}-button`} className="text-button" disabled={disabled} onClick={() => run({ type })}>{label}</button>)}</div>
   </section>;
 }
-function PrintDimensions({ part, type }) {
+function PrintDimensions({ part, type }: { part: DesignedPart; type: Part['type'] }) {
   const pose = part.print, direction = pose.needsSupport ? '侧放，可能需支撑' : type === 'frame' ? '开口朝上' : '底面朝下';
   return <dd id={`${type}-print-dimensions`} className="print-pose">打印 XYZ：{pose.dimensions.map((n) => display(n, 2)).join(' × ')} mm{'\n'}{direction}</dd>;
 }
-export function BoxList({ editor, run, onExport }) {
+export function BoxList({ editor, run, onExport }: { editor: EditorState; run: RunEditorAction; onExport: () => void }) {
   const { result, selected, error } = editor;
   const box = result.boxes.find((item) => item.id === selected);
   const notices = box ? [...result.issues, ...result.warnings].filter((issue) => issue.boxId === selected) : [];

@@ -1,32 +1,36 @@
+import type { ChangeEvent } from 'react';
+import type { DesignResult, GridShape, Plate } from './types.ts';
+import type { View, Tool, Viewport } from './view-types.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { design } from './core.mjs';
-import { plate3MF, printBundle } from './export.mjs';
-import { readSavedDocument, serializeDocument } from './editor.mjs';
-import { download } from './download.mjs';
-import { useEditor } from './use-editor.jsx';
-import { Icons, Icon } from './components/Icons.jsx';
-import { Parameters } from './components/Parameters.jsx';
-import { DrawingControls, BoxList } from './components/BoxList.jsx';
-import { PreviewWorkspace } from './components/PreviewWorkspace.jsx';
-import { ExportDialog, HelpDialog } from './components/Dialogs.jsx';
+import { design } from './core.ts';
+import { plate3MF, printBundle } from './export.ts';
+import { readSavedDocument, serializeDocument, errorDetails } from './editor.ts';
+import { download } from './download.ts';
+import { useEditor } from './use-editor.ts';
+import { Icons, Icon } from './components/Icons.tsx';
+import { Parameters } from './components/Parameters.tsx';
+import { DrawingControls, BoxList } from './components/BoxList.tsx';
+import { PreviewWorkspace } from './components/PreviewWorkspace.tsx';
+import { ExportDialog, HelpDialog } from './components/Dialogs.tsx';
 
 export default function App() {
   const { editor, draft, changeField, applyNow, run } = useEditor();
-  const sidebarRef = useRef(null), scrollRef = useRef(null), importRef = useRef(null), toastTimer = useRef(null);
-  const [brush, setBrush] = useState({ cols: 1, rows: 1 });
-  const [viewport, setViewport] = useState({ view: '3d', tool: 'draw', pull: true, plateIndex: 0, plateMode: 'isometric' });
+  const sidebarRef = useRef<HTMLElement | null>(null), scrollRef = useRef<HTMLDivElement | null>(null), importRef = useRef<HTMLInputElement | null>(null), toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [brush, setBrush] = useState<GridShape>({ cols: 1, rows: 1 });
+  const [viewport, setViewport] = useState<Viewport>({ view: '3d', tool: 'draw', pull: true, plateIndex: 0, plateMode: 'isometric' });
   const [resetRevision, setResetRevision] = useState(0);
-  const [exportResult, setExportResult] = useState(null), [helpOpen, setHelpOpen] = useState(false), [toast, setToast] = useState(null);
-  const updateViewport = useCallback((patch) => setViewport((previous) => ({ ...previous, ...patch })), []);
-  const notify = useCallback((message) => {
+  const [exportResult, setExportResult] = useState<DesignResult | null>(null), [helpOpen, setHelpOpen] = useState(false), [toast, setToast] = useState<string | null>(null);
+  const updateViewport = useCallback((patch: Partial<Viewport>) => setViewport((previous) => ({ ...previous, ...patch })), []);
+  const notify = useCallback((message: string) => {
     clearTimeout(toastTimer.current); setToast(message);
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
   useEffect(() => { if (editor.notice) notify(editor.notice.message); }, [editor.notice, notify]);
   useEffect(() => {
-    const keyDown = (event) => {
-      if (event.target.matches('input,textarea,select') || event.target.isContentEditable || helpOpen || exportResult) return;
+    const keyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if ((target instanceof Element && (target.matches('input,textarea,select') || (target instanceof HTMLElement && target.isContentEditable))) || helpOpen || exportResult) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault(); run({ type: event.shiftKey ? 'redo' : 'undo' });
       } else if (['Delete', 'Backspace'].includes(event.key) && editor.selected !== null) {
@@ -37,14 +41,14 @@ export default function App() {
     return () => document.removeEventListener('keydown', keyDown);
   }, [run, editor.selected, helpOpen, exportResult]);
 
-  function setView(view) {
+  function setView(view: View) {
     setViewport((previous) => ({ ...previous, view, tool: view === 'front' && previous.tool === 'orbit' ? 'draw' : previous.tool }));
   }
-  function setTool(tool) {
+  function setTool(tool: Tool) {
     setViewport((previous) => ({ ...previous, tool, view: previous.view === 'plate' || (tool === 'orbit' && previous.view === 'front') ? '3d' : previous.view }));
   }
-  function chooseBrush(next) { setBrush(next); setTool('draw'); }
-  function downloadPlate(plate) {
+  function chooseBrush(next: GridShape) { setBrush(next); setTool('draw'); }
+  function downloadPlate(plate: Plate | undefined) {
     if (!plate) return;
     download(plate3MF(plate), `boxfinity-cabinet-plate-${String(plate.id).padStart(2, '0')}.3mf`, 'model/3mf');
     notify(`第 ${plate.id} 盘 3MF 已下载`);
@@ -65,14 +69,14 @@ export default function App() {
     download(serializeDocument({ settings: result.cfg, placements: result.placements }), 'boxfinity-cabinet-design.json', 'application/json');
     notify('柜体方案已保存');
   }
-  async function importDesign(event) {
-    const file = event.target.files[0];
+  async function importDesign(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget, file = input.files?.[0];
     if (!file) return;
     try {
       if (file.size > 1_000_000) throw new Error('方案文件超过 1 MB');
       run({ type: 'load', document: readSavedDocument(JSON.parse(await file.text())) });
-    } catch (error) { notify(`导入失败：${error.message}`); }
-    event.target.value = '';
+    } catch (error) { notify(`导入失败：${errorDetails(error).message}`); }
+    input.value = '';
   }
   return <>
     <Icons />
@@ -81,7 +85,7 @@ export default function App() {
       <span className="project-title">柜内抽拉收纳</span>
       <div className="header-actions">
         <button id="help-button" className="icon-button" aria-label="使用指南" onClick={() => setHelpOpen(true)}><Icon name="info" /></button>
-        <button id="import-button" className="button subtle" onClick={() => importRef.current.click()}>导入</button>
+        <button id="import-button" className="button subtle" onClick={() => importRef.current?.click()}>导入</button>
         <button id="save-button" className="button secondary" disabled={!!editor.error} onClick={saveDesign}>保存方案</button>
         <button id="export-button" className="button primary" disabled={!editor.result.printable || !!editor.error} onClick={() => openExport()}><Icon name="download" />导出 3MF</button>
       </div>

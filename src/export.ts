@@ -1,10 +1,15 @@
-import { partMesh } from './geometry.mjs';
-import { zip } from './zip.mjs';
-import { display } from './core.mjs';
-import { printTransform, availablePrintVolume, preferredPrintVolume } from './printing.mjs';
-const xml = (value) => String(value).replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]);
-const num = (n) => Number(n.toFixed(6));
-export function modelXML(items, title = 'Boxfinity') {
+import type { Part, Plate, DesignResult, PrintPlacement, PrintOption } from './types.ts';
+import { partMesh } from './geometry.ts';
+import { zip } from './zip.ts';
+import { display } from './core.ts';
+import { printTransform, availablePrintVolume, preferredPrintVolume } from './printing.ts';
+
+type ModelItem = PrintPlacement & { part: Part; orientation?: Pick<PrintOption, 'axes' | 'needsSupport'>; usesReservedMargin?: boolean };
+
+const escapes: Record<string, string> = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' };
+const xml = (value: unknown) => String(value).replace(/[<>&"']/g, (c) => escapes[c]);
+const num = (n: number) => Number(n.toFixed(6));
+export function modelXML(items: ModelItem[], title = 'Boxfinity') {
   const resources = items.map(({ part, orientation, usesReservedMargin }, index) => {
     const mesh = partMesh(part);
     return `<object id="${index + 1}" type="model" name="${xml(part.label+(orientation?.needsSupport?'（侧放，检查支撑）':'')+(usesReservedMargin?'（占用建议边距）':''))}"><mesh><vertices>${mesh.vertices.map(([x,y,z]) => `<vertex x="${num(x)}" y="${num(y)}" z="${num(z)}"/>`).join('')}</vertices><triangles>${mesh.triangles.map(([a,b,c]) => `<triangle v1="${a}" v2="${b}" v3="${c}"/>`).join('')}</triangles></mesh></object>`;
@@ -12,14 +17,14 @@ export function modelXML(items, title = 'Boxfinity') {
   const build=items.map((item,index)=>`<item objectid="${index+1}" transform="${printTransform(item.part,item).map(num).join(' ')}"/>`).join('');
   return `<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xml:lang="zh-CN" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><metadata name="Title">${xml(title)}</metadata><metadata name="Application">Boxfinity</metadata><resources>${resources}</resources><build>${build}</build></model>`;
 }
-export function plate3MF(plate) {
+export function plate3MF(plate: Plate) {
   return zip([
     { name:'[Content_Types].xml', data:'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>' },
     { name:'_rels/.rels', data:'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>' },
     { name:'3D/3dmodel.model', data:modelXML(plate.items, `Boxfinity · Plate ${plate.id}`) },
   ]);
 }
-export function printBundle(result) {
+export function printBundle(result: DesignResult) {
   if (!result.printable) throw new Error(result.issues.length ? '方案包含超出打印范围的零件，请先调整布局' : '请先在网格中绘制盒子');
   const manifest = { generator:'Boxfinity', version:2, units:'mm', gridAxes:'columns = cabinet width, rows = cabinet height, row 0 = top',
     settings:result.cfg, grid:result.grid, boxes:result.boxes, availablePrintXYZ:availablePrintVolume(result.cfg),preferredPrintXYZ:preferredPrintVolume(result.cfg),
