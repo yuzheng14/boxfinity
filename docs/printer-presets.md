@@ -2,7 +2,7 @@
 
 数据位于 `src/printers.ts`，单位为 mm，轴序为 X（宽）× Y（深）× Z（高）。核对日期：2026-11-11。
 
-只填写官方标称的可打印尺寸；不填写机器外形尺寸或钢板尺寸。额外边距由用户独立设置。预设不包含切片机配置、喷嘴、材料、支撑或多色擦拭塔占位。
+只填写官方标称的可打印尺寸；不填写机器外形尺寸或钢板尺寸。额外边距由用户独立设置。尺寸预设不包含支撑或多色擦拭塔占位；整套 3MF 的切片配置映射见下文。
 
 ## 官方来源
 
@@ -36,3 +36,13 @@ H2D 和 H2C 的双喷嘴并集不能作为单个零件的完整打印范围，�
 选择机型只更新打印 XYZ，保留柜体、布局、结构参数和额外边距，并重新计算打印适配与排盘。手动修改任意打印轴后显示“自定义尺寸”；也可直接选择自定义，保留当前数值。
 
 v2 方案增加可选的顶层 `printerPresetId`，与数值参数共同保存和撤销。相同尺寸的不同机型不会因刷新而互换名称。旧版 v2 方案没有此字段时保留原始 XYZ，显示自定义；未知或与尺寸不符的预设标识会被忽略，绝不覆盖导入的尺寸。
+
+## 整套 3MF 的切片配置
+
+导出将通过尺寸校验的 `printerPresetId` 与设计结果一起保存为快照。选择拓竹机型时引用 Bambu Studio 官方系统预设，采用 0.4 mm 喷嘴、相应机型的 Generic PETG 和 0.20 mm Standard 工艺；P1S 复用官方的 X1C 工艺，H2D、H2C、X2D 保留双喷嘴结构。不同打印模式共用同一机器配置，导入后仍需核对实际喷嘴与打印模式。
+
+项目的 `inherits_group` 引用工艺、耗材、机器，`different_settings_to_system` 只允许用户打印范围的 `printable_area;printable_height` 差异。机器与耗材 G-code 从切片软件已安装的系统预设继承，不复制第三方脚本、不将缺失脚本当成空字符串。盘网格仍按用户输入的 XYZ 生成。
+
+自定义、旧版无机型标识的方案、失效/尺寸不符的标识及暂未映射的其他品牌使用 X1 Carbon 0.4 mm 兼容兜底，并在导出弹窗及 ZIP 说明中显示。它不代表用户实际拥有 X1C，也不证明用户的自定义范围能由 X1C 打印；导入后应切换实际机型。其他品牌的有效选择仍记录在装配清单中。单盘 3MF 继续只包含几何。
+
+名称核对：Bambu Studio 02.09.01.70 随附配置；[官方机器、耗材和工艺目录](https://github.com/bambulab/BambuStudio/tree/master/resources/profiles/BBL)，[系统预设验证与载入](https://github.com/bambulab/BambuStudio/blob/master/src/libslic3r/PresetBundle.cpp)，[按差异继承系统配置](https://github.com/bambulab/BambuStudio/blob/master/src/libslic3r/Preset.cpp)。导出依赖用户切片软件安装了对应机型的预设；旧版本缺少新机型时需先更新切片软件或切换实际可用机型。

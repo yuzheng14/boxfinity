@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { DesignResult, Plate } from '../types.ts';
 import { useEffect, useRef } from 'react';
 import { MAX_PROJECT_PLATES } from '../export.ts';
+import { projectPresetNote } from '../slicer-presets.ts';
 import { Icon } from './Icons.tsx';
 
 function Dialog({
@@ -66,12 +67,14 @@ function Dialog({
 }
 export function ExportDialog({
   result,
+  printerPresetId,
   onClose,
   onPlate,
   onProject,
   onBundle,
 }: {
   result: DesignResult | null;
+  printerPresetId?: string;
   onClose: () => void;
   onPlate: (plate: Plate) => void;
   onProject: (result: DesignResult) => void;
@@ -83,7 +86,7 @@ export function ExportDialog({
   if (result?.marginParts.length) notices.push(`${result.marginParts.length} 个零件占用建议边距`);
   const note = notices.length
     ? `${notices.join('；')}。模型均在最大打印范围内，切片时检查支撑、裙边等额外占位。`
-    : '已保持建议留边，优先盒子底面朝下、框套开口朝上。导入切片软件后选择实际打印机与耗材。';
+    : '已保持建议留边，优先盒子底面朝下、框套开口朝上。';
   return (
     <Dialog
       id="export-dialog"
@@ -107,10 +110,10 @@ export function ExportDialog({
             <Icon name="download" />
             下载整套 3MF
           </button>
-          <p>
+          <p id="export-preset-note">
             {result.plates.length > MAX_PROJECT_PLATES
               ? `多盘项目最多 ${MAX_PROJECT_PLATES} 盘，请下载 ZIP 或单盘文件。`
-              : '在 Bambu Studio / OrcaSlicer 中作为项目打开。切片前选择实际打印机、喷嘴与耗材。'}
+              : projectPresetNote(result.cfg, printerPresetId)}
           </p>
           <div id="export-plates" className="export-plates">
             {result.plates.map((plate) => (
