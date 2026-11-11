@@ -1,9 +1,11 @@
+import type { DrawerPart, FramePart, Part, Vec3, MeshData } from './types.ts';
+
 // Meshes share vertices and use outward winding. Dimensions use print coordinates.
-export function drawerMesh(part, segments = 8) {
+export function drawerMesh(part: DrawerPart, segments = 8): MeshData {
   const { width: w, depth: d, height: h, wall: t, base: b, radius: r } = part;
   const notch = Math.max(0, Math.min(14, w * .16, (w - 2 * r) / 2 - 1, h * .27));
-  const contour = (inset, radius) => {
-    const points = [];
+  const contour = (inset: number, radius: number) => {
+    const points: Vec3[] = [];
     const corners = [[w - inset - radius, d - inset - radius], [inset + radius, d - inset - radius], [inset + radius, inset + radius], [w - inset - radius, inset + radius]];
     corners.forEach(([cx, cy], corner) => {
       for (let i = 0; i <= segments; i++) {
@@ -22,15 +24,15 @@ export function drawerMesh(part, segments = 8) {
     return points;
   };
   const outer = contour(0, r), inner = contour(t, r - t), n = outer.length;
-  const vertices = [
-    ...outer.map(([x, y]) => [x, y, 0]),
+  const vertices: Vec3[] = [
+    ...outer.map(([x, y]): Vec3 => [x, y, 0]),
     ...outer,
     ...inner,
-    ...inner.map(([x, y]) => [x, y, b]),
+    ...inner.map(([x, y]): Vec3 => [x, y, b]),
     [w / 2, d / 2, 0], [w / 2, d / 2, b],
   ];
-  const triangles = [];
-  const quad = (a, b, c, d) => triangles.push([a, b, c], [a, c, d]);
+  const triangles: MeshData['triangles'] = [];
+  const quad = (a: number, b: number, c: number, d: number) => triangles.push([a, b, c], [a, c, d]);
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     quad(i, j, j + n, i + n);
@@ -43,16 +45,16 @@ export function drawerMesh(part, segments = 8) {
 
 // A four-sided, open-front/open-back sleeve. Print with its opening facing up:
 // print X/Y = cabinet width/height; print Z = cabinet depth. No roof bridging.
-export function frameMesh(part) {
+export function frameMesh(part: FramePart): MeshData {
   const { width: w, depth: d, height: h, wall: t } = part;
   const outer = [[0, 0], [w, 0], [w, d], [0, d]];
   const inner = [[t, t], [w - t, t], [w - t, d - t], [t, d - t]];
-  const vertices = [
-    ...outer.map(([x, y]) => [x, y, 0]), ...outer.map(([x, y]) => [x, y, h]),
-    ...inner.map(([x, y]) => [x, y, h]), ...inner.map(([x, y]) => [x, y, 0]),
+  const vertices: Vec3[] = [
+    ...outer.map(([x, y]): Vec3 => [x, y, 0]), ...outer.map(([x, y]): Vec3 => [x, y, h]),
+    ...inner.map(([x, y]): Vec3 => [x, y, h]), ...inner.map(([x, y]): Vec3 => [x, y, 0]),
   ];
-  const triangles = [];
-  const quad = (a, b, c, d) => triangles.push([a, b, c], [a, c, d]);
+  const triangles: MeshData['triangles'] = [];
+  const quad = (a: number, b: number, c: number, d: number) => triangles.push([a, b, c], [a, c, d]);
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
     quad(i, j, j + 4, i + 4);
@@ -62,8 +64,8 @@ export function frameMesh(part) {
   }
   return { vertices, triangles };
 }
-export const partMesh = (part) => part.type === 'frame' ? frameMesh(part) : drawerMesh(part);
-export function meshVolume(mesh) {
+export const partMesh = (part: Part): MeshData => part.type === 'frame' ? frameMesh(part) : drawerMesh(part);
+export function meshVolume(mesh: MeshData) {
   let volume = 0;
   for (const [i, j, k] of mesh.triangles) {
     const a = mesh.vertices[i], b = mesh.vertices[j], c = mesh.vertices[k];

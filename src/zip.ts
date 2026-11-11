@@ -5,15 +5,15 @@ const crcTable = Uint32Array.from({ length: 256 }, (_, i) => {
   for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
   return c >>> 0;
 });
-export function crc32(bytes) {
+export function crc32(bytes: Uint8Array) {
   let c = 0xffffffff;
   for (const byte of bytes) c = crcTable[(c ^ byte) & 255] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
-export function zip(entries) {
-  const parts = [], central = [];
+export function zip(entries: { name: string; data: string | Uint8Array }[]) {
+  const parts: Uint8Array[] = [], central: Uint8Array[] = [];
   let offset = 0, centralSize = 0;
-  const header = (size) => { const bytes = new Uint8Array(size); return [bytes, new DataView(bytes.buffer)]; };
+  const header = (size: number) => { const bytes = new Uint8Array(size); return [bytes, new DataView(bytes.buffer)] as const; };
   for (const entry of entries) {
     const name = encoder.encode(entry.name), data = typeof entry.data === 'string' ? encoder.encode(entry.data) : entry.data;
     const crc = crc32(data);

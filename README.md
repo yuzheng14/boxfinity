@@ -2,7 +2,7 @@
 
 本地运行的柜内抽拉收纳设计原型：根据柜内宽、高推荐单元尺寸，在柜子正面网格上画出不同尺寸的盒子，预览开放框套与盒子的组合，再导出 3MF。
 
-纯静态网站，3D 渲染使用经批准引入的 `three@^0.187.0`（MIT，含同包 OrbitControls），构建使用已批准的 `vite@^8.3.7`。Three.js 随 Vite 产物本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
+纯静态 React + TypeScript 网站。UI 使用已批准的 `react@^19.3.1`、`react-dom@^19.3.1`；3D 使用 `three@^0.187.0`（含同包 OrbitControls）；构建使用 `vite@^8.3.7` 和 `@vitejs/plugin-react@^6.3.0`。Three.js 随 Vite 产物本地加载，无 CDN、后端或数据上传。项目采用 [MIT 协议](./LICENSE)，源码位于 [yuzheng14/boxfinity](https://github.com/yuzheng14/boxfinity)。在线使用：[Boxfinity](https://yuzheng14.github.io/boxfinity/)。
 
 ## 运行
 
@@ -13,10 +13,13 @@ npm ci
 npm run dev
 ```
 
+应用源码使用 TypeScript，`tsconfig.json` 启用严格检查。`npm run typecheck` 单独检查类型，`npm run build` 先检查类型再打包；CI 使用同一构建命令。测试仍使用 Node 自带 runner，通过 `--experimental-strip-types` 直接运行核心 TS 模块，兼容 Node 22.12 起的类型剥离功能。
+
 打开终端输出的地址（默认 <http://localhost:5173/boxfinity/>，端口占用时自动顺延）。Vite 开发服务提供模块解析与热更新。构建部署版本运行 `npm run build`，再用任意静态 HTTP 服务托管 `dist/`；`npm run preview` 可本地检查构建结果。Vite 的 base 为 `/boxfinity/`，与 GitHub Pages 仓库子路径一致。ES 模块需要 HTTP，不要通过 `file://` 打开。
 
 ```sh
 npm test
+npm run typecheck
 ```
 
 ## 工作流程
@@ -60,24 +63,27 @@ npm test
 
 ## 代码结构
 
-入口 `index.html` 位于项目根目录，源码在 `src/`，无需处理的静态资源（如 favicon）在 `public/`。
+共享领域类型定义在 `src/types.ts`，相机与视图类型在 `src/view-types.ts`。入口 `index.html` 位于项目根目录，源码在 `src/`，无需处理的静态资源（如 favicon）在 `public/`。
 
-- `src/core.mjs`：参数、推荐单元、柜内组合尺寸、打印约束、变尺寸排盘。
-- `src/layout.mjs`：矩形拖选、占用、重叠检测与填充。
-- `src/printing.mjs`：有效打印范围、六种朝向、超限原因与一致的旋转变换。
-- `src/geometry.mjs`：带前沿指扣的盒子、开放框套的闭合网格。
-- `src/export.mjs` / `src/zip.mjs`：3MF、打印 ZIP 与装配清单。
-- `src/renderer.mjs`：Three.js 场景、均匀底色与轮廓线、OrbitControls、柜体与打印盘预览；保留真实透视和遮挡，不使用灯光及投影阴影。
-- `src/view-camera.mjs`：透视/正交取景、标注投影和网格射线拾取。
-- `src/view-input.mjs`：区分双指滑动旋转与捏合缩放，统一处理像素、行与页单位。
-- `src/view-geometry.mjs`：将现有几何与打印方向转换为 Three.js BufferGeometry。
-- `src/app.mjs`：编辑状态、历史、指针操作、持久化与导入导出。
-- `index.html` / `src/style.css`：左右两栏工作台与响应式布局。
-- `vite.config.mjs`：GitHub Pages 子路径与第三方许可证输出，其余使用 Vite 默认配置。
+- `src/core.ts`：参数、推荐单元、柜内组合尺寸、打印约束、变尺寸排盘。
+- `src/layout.ts`：矩形拖选、占用、重叠检测与填充。
+- `src/printing.ts`：有效打印范围、六种朝向、超限原因与一致的旋转变换。
+- `src/geometry.ts`：带前沿指扣的盒子、开放框套的闭合网格。
+- `src/export.ts` / `src/zip.ts`：3MF、打印 ZIP 与装配清单。
+- `src/renderer.ts`：Three.js 场景、均匀底色与轮廓线、OrbitControls、柜体与打印盘预览；保留真实透视和遮挡，不使用灯光及投影阴影。
+- `src/view-camera.ts`：透视/正交取景、标注投影和网格射线拾取。
+- `src/view-input.ts`：区分双指滑动旋转与捏合缩放，统一处理像素、行与页单位。
+- `src/view-geometry.ts`：将现有几何与打印方向转换为 Three.js BufferGeometry。
+- `src/main.tsx` / `src/App.tsx`：React 入口与应用组合，连接导入、导出及全局快捷键。
+- `src/editor.ts` / `src/use-editor.ts`：有效设计、输入草稿、撤销/重做、选择和 localStorage 持久化；无效输入保留最近的有效方案。
+- `src/components/`：参数面板、测量浮层、盒子列表、三维视口、帮助与导出弹窗。
+- `src/components/PreviewWorkspace.tsx`：Three.js 与 React 的边界，指针/滚轮交互及卸载清理。
+- `index.html` / `src/style.css`：页面入口、左右两栏样式与响应式布局。
+- `vite.config.mjs`：GitHub Pages 子路径、React 插件与第三方许可证输出，其余使用 Vite 默认配置。
 
 ## 自动检查与发布
 
-[CI and Pages](./.github/workflows/ci-pages.yml) 在 PR 和 main 提交时使用 Node.js 22 安装锁定依赖、运行测试并构建。PR 任务只有源码读取权限；main 构建成功后上传 `dist/`，由独立部署任务发布到 [GitHub Pages](https://yuzheng14.github.io/boxfinity/)。也可在 Actions 页面手动运行 main 的工作流。部署任务使用 `github-pages` 环境，仅它拥有 Pages 和 OIDC 写权限。
+[CI and Pages](./.github/workflows/ci-pages.yml) 在 PR 和 main 提交时使用 Node.js 22 安装锁定依赖、运行测试、严格类型检查并构建。PR 任务只有源码读取权限；main 构建成功后上传 `dist/`，由独立部署任务发布到 [GitHub Pages](https://yuzheng14.github.io/boxfinity/)。也可在 Actions 页面手动运行 main 的工作流。部署任务使用 `github-pages` 环境，仅它拥有 Pages 和 OIDC 写权限。
 
 首次配置仓库时，将 Settings → Pages → Build and deployment → Source 设为 **GitHub Actions**。工作流中官方 Actions 已获批准并固定到完整提交 SHA；版本升级仍需先审批。不要将生成的 `dist/` 提交进源码分支。
 
@@ -97,4 +103,4 @@ npm run dev -- --port 5175
 
 ## 许可证
 
-项目使用 [MIT](./LICENSE)。Three.js 同为 MIT 协议。Vite 内置的许可证生成将打包依赖的声明写入 `dist/THIRD_PARTY_LICENSES.md`，随静态产物一起发布。
+项目使用 [MIT](./LICENSE)。Three.js、React、React DOM 和 Scheduler 的许可证由 Vite 内置功能写入 `dist/THIRD_PARTY_LICENSES.md`，随静态产物一起发布。
