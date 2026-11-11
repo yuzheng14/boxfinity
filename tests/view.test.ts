@@ -1,10 +1,12 @@
-import test from 'node:test';
+import { test } from 'vitest';
+import type { PreviewCamera } from '../src/view-types.ts';
+import type { Vec3, PlateItem } from '../src/types.ts';
 import assert from 'node:assert/strict';
 import { Box3, Vector3, PerspectiveCamera, OrthographicCamera } from 'three';
 import { fitViewCamera, projectPoint, gridCellAt, boxCorners } from '../src/view-camera.ts';
 import { platePartGeometry } from '../src/view-geometry.ts';
 import { design } from '../src/core.ts';
-import { PRINT_ORIENTATIONS, dimensionsFor } from '../src/printing.ts';
+import { printOptions } from '../src/printing.ts';
 import { modelXML } from '../src/export.ts';
 const viewport = { width: 1200, height: 760 };
 const bounds = new Box3(new Vector3(0, 0, 0), new Vector3(585, 330, 330));
@@ -20,7 +22,7 @@ function perspective(
   fitViewCamera(camera, box, width, height, { direction: eye });
   return camera;
 }
-const length = (camera, a, b) => {
+const length = (camera: PreviewCamera, a: Vec3, b: Vec3) => {
   const p = projectPoint(camera, a, viewport.width, viewport.height),
     q = projectPoint(camera, b, viewport.width, viewport.height);
   return Math.hypot(q[0] - p[0], q[1] - p[1]);
@@ -38,7 +40,7 @@ test('camera framing keeps deep, tall, pulled-out and narrow-viewport designs in
     [[0, -180, 0], [585, 330, 330], 450, 680],
     [[0, 0, 0], [160, 800, 600], 1100, 600],
     [[0, 0, 0], [1500, 80, 120], 1200, 500],
-  ]) {
+  ] satisfies [Vec3, Vec3, number, number][]) {
     const box = new Box3(new Vector3(...min), new Vector3(...max)),
       camera = perspective(box, width, height);
     for (const corner of boxCorners(box)) {
@@ -93,7 +95,7 @@ test('perspective and orthographic picking round-trip every cell after camera or
   for (const camera of cameras)
     for (let row = 0; row < grid.rows; row++)
       for (let col = 0; col < grid.cols; col++) {
-        const point = [
+        const point: Vec3 = [
           cfg.edge + (col + 0.5) * grid.unitWidth,
           cfg.edge - 0.8,
           cfg.height - cfg.edge - (row + 0.5) * grid.unitHeight,
@@ -122,12 +124,21 @@ test('Three.js preview vertices agree with the serialized 3MF build transform fo
     [{ id: 1, col: 0, row: 0, cols: 2, rows: 3 }],
   );
   for (const part of result.parts)
-    for (const axes of PRINT_ORIENTATIONS) {
-      const item = {
+    for (const orientation of printOptions(part, result.cfg)) {
+      const item: PlateItem = {
         part,
         x: 7,
         y: 11,
-        orientation: { axes, dimensions: dimensionsFor(part, axes) },
+        orientation,
+        width: orientation.width,
+        depth: orientation.depth,
+        edgeClearances: {
+          left: 7,
+          front: 11,
+          right: result.cfg.bedWidth - 7 - orientation.width,
+          back: result.cfg.bedDepth - 11 - orientation.depth,
+        },
+        usesReservedMargin: false,
       };
       const geometry = platePartGeometry(item),
         positions = geometry.getAttribute('position');
@@ -135,10 +146,9 @@ test('Three.js preview vertices agree with the serialized 3MF build transform fo
       const vertices = [...xml.matchAll(/<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"/g)].map((m) =>
         m.slice(1).map(Number),
       );
-      const m = xml
-        .match(/transform="([^"]+)"/)[1]
-        .split(' ')
-        .map(Number);
+      const match = xml.match(/transform="([^"]+)"/);
+      assert.ok(match);
+      const m = match[1].split(' ').map(Number);
       assert.equal(positions.count, vertices.length);
       for (let i = 0; i < vertices.length; i++) {
         const [x, y, z] = vertices[i],

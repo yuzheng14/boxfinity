@@ -26,7 +26,13 @@
       }
     },
     {
-      "files": ["tests/**/*.mjs", "vite.config.mjs"],
+      "files": [
+        "tests/**/*.ts",
+        "vite.config.mjs",
+        "vitest.config.ts",
+        "e2e/**/*.ts",
+        "playwright.config.ts"
+      ],
       "env": {
         "node": true
       }

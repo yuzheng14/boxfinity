@@ -1,4 +1,6 @@
-import test from 'node:test';
+import { test } from 'vitest';
+import type { MeshData } from '../src/types.ts';
+import { readZip, entry, readJSON, array, records } from './helpers/artifacts.ts';
 import assert from 'node:assert/strict';
 import { design, settings, recommendGrids, partFits } from '../src/core.ts';
 import {
@@ -11,7 +13,8 @@ import {
 import { partMesh, meshVolume } from '../src/geometry.ts';
 import { modelXML, plate3MF, project3MF, printBundle } from '../src/export.ts';
 import { crc32 } from '../src/zip.ts';
-const near = (a, b, tolerance = 1e-3) => assert.ok(Math.abs(a - b) < tolerance, `${a} ≈ ${b}`);
+const near = (a: number, b: number, tolerance = 1e-3) =>
+  assert.ok(Math.abs(a - b) < tolerance, `${a} ≈ ${b}`);
 const shapes = [
   { id: 1, col: 0, row: 0, cols: 1, rows: 1 },
   { id: 2, col: 1, row: 0, cols: 1, rows: 2 },
@@ -19,30 +22,8 @@ const shapes = [
   { id: 4, col: 4, row: 0, cols: 3, rows: 2 },
 ];
 const sample = () => design({}, shapes);
-function readZip(bytes) {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
-    decoder = new TextDecoder(),
-    files = new Map();
-  let offset = 0;
-  while (view.getUint32(offset, true) === 0x04034b50) {
-    assert.equal(view.getUint16(offset + 8, true), 0);
-    const length = view.getUint32(offset + 18, true),
-      nameLength = view.getUint16(offset + 26, true),
-      extra = view.getUint16(offset + 28, true);
-    const name = decoder.decode(bytes.slice(offset + 30, offset + 30 + nameLength)),
-      start = offset + 30 + nameLength + extra,
-      data = bytes.slice(start, start + length);
-    assert.equal(crc32(data), view.getUint32(offset + 14, true));
-    files.set(name, data);
-    offset = start + length;
-  }
-  assert.equal(view.getUint32(offset, true), 0x02014b50);
-  assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50);
-  assert.equal(view.getUint16(bytes.length - 12, true), files.size);
-  return files;
-}
-function assertManifold(mesh) {
-  const edges = new Map();
+function assertManifold(mesh: MeshData) {
+  const edges = new Map<string, number[]>();
   for (const triangle of mesh.triangles) {
     const [a, b, c] = triangle.map((index) => mesh.vertices[index]);
     const ab = b.map((n, i) => n - a[i]),
@@ -132,7 +113,9 @@ test('reverse drag normalizes a rectangular front-view selection', () => {
 });
 test('overlaps, bounds, fractional cells and duplicate IDs are rejected', () => {
   const grid = design().grid;
-  assert.match(placementError({ col: 0, row: 0, cols: 2, rows: 1 }, shapes, grid), /重叠/);
+  const overlap = placementError({ col: 0, row: 0, cols: 2, rows: 1 }, shapes, grid);
+  assert.ok(overlap);
+  assert.match(overlap, /重叠/);
   assert.throws(() => design({}, [{ id: 1, col: 8, row: 0, cols: 2, rows: 1 }]), /网格/);
   assert.throws(() => design({}, [{ id: 1, col: 0.5, row: 0, cols: 1, rows: 1 }]), /网格/);
   assert.throws(() => design({}, [shapes[0], { ...shapes[1], id: 1 }]), /编号/);
@@ -190,7 +173,7 @@ test('drawer and sleeve meshes are closed manifolds with correct print bounds', 
         [0, part.width],
         [1, part.depth],
         [2, part.height],
-      ]) {
+      ] as const) {
         near(Math.min(...mesh.vertices.map((v) => v[axis])), 0);
         near(Math.max(...mesh.vertices.map((v) => v[axis])), dimension);
       }
@@ -220,22 +203,24 @@ test('3MF contains the actual mixed drawer and frame meshes in millimetres', () 
   const r = sample(),
     plate = r.plates[0],
     files = readZip(plate3MF(plate)),
-    text = new TextDecoder().decode(files.get('3D/3dmodel.model'));
+    text = new TextDecoder().decode(entry(files, '3D/3dmodel.model'));
   assert.equal(files.size, 3);
   assert.match(text, /unit="millimeter"/);
   assert.match(text, /<vertex /);
   assert.match(text, /<triangle /);
   assert.equal((text.match(/<object /g) || []).length, plate.items.length);
   assert.equal((text.match(/<item /g) || []).length, plate.items.length);
-  assert.match(new TextDecoder().decode(files.get('_rels/.rels')), /Target="\/3D\/3dmodel.model"/);
+  assert.match(
+    new TextDecoder().decode(entry(files, '_rels/.rels')),
+    /Target="\/3D\/3dmodel.model"/,
+  );
 });
 test('rotated 3MF transform preserves print-space bounds', () => {
   const part = sample().parts[0],
     text = modelXML([{ part, x: 3, y: 4, rotated: true }]);
-  const values = text
-    .match(/transform="([^"]+)"/)[1]
-    .split(' ')
-    .map(Number);
+  const match = text.match(/transform="([^"]+)"/);
+  assert.ok(match);
+  const values = match[1].split(' ').map(Number);
   const points = partMesh(part).vertices.map(([x, y, z]) => [
     x * values[0] + y * values[3] + z * values[6] + values[9],
     x * values[1] + y * values[4] + z * values[7] + values[10],
@@ -248,20 +233,23 @@ test('rotated 3MF transform preserves print-space bounds', () => {
 test('print kit includes every drawer and frame and a versioned front-grid assembly map', () => {
   const r = sample(),
     files = readZip(printBundle(r)),
-    manifest = JSON.parse(new TextDecoder().decode(files.get('assembly.json')));
+    manifest = readJSON(entry(files, 'assembly.json'));
   assert.equal(manifest.version, 2);
   assert.equal(manifest.projectFile, 'boxfinity.3mf');
-  assert.deepEqual(files.get(manifest.projectFile), project3MF(r));
-  const project = readZip(files.get(manifest.projectFile));
+  const projectBytes = entry(files, String(manifest.projectFile));
+  assert.deepEqual(projectBytes, project3MF(r));
+  const project = readZip(projectBytes);
   assert.equal(project.size, 6);
-  assert.deepEqual(
-    JSON.parse(new TextDecoder().decode(project.get('Metadata/assembly.json'))),
-    manifest,
-  );
-  assert.equal(manifest.boxes.length, 4);
-  assert.match(manifest.gridAxes, /cabinet height/);
-  assert.equal(manifest.plates.flatMap((plate) => plate.parts).length, 8);
-  for (const plate of manifest.plates) readZip(files.get(plate.file));
+  assert.deepEqual(readJSON(entry(project, 'Metadata/assembly.json')), manifest);
+  assert.equal(records(manifest.boxes).length, 4);
+  assert.equal(typeof manifest.gridAxes, 'string');
+  assert.match(String(manifest.gridAxes), /cabinet height/);
+  const plates = records(manifest.plates);
+  assert.equal(plates.flatMap((plate) => array(plate.parts)).length, 8);
+  for (const plate of plates) {
+    assert.ok(typeof plate.file === 'string');
+    readZip(entry(files, plate.file));
+  }
 });
 test('invalid parameters fail before producing geometry', () => {
   for (const input of [null, [], true, 'bad']) assert.throws(() => settings(input), /对象/);
