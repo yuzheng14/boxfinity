@@ -2,12 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PRINTER_PRESETS, printerPreset } from '../src/printers.ts';
 import { DEFAULTS, partFits } from '../src/core.ts';
-import { applyDraft, createEditor, editorReducer, readSavedDocument, serializeDocument, settingsDraft } from '../src/editor.ts';
+import {
+  applyDraft,
+  createEditor,
+  editorReducer,
+  readSavedDocument,
+  serializeDocument,
+  settingsDraft,
+} from '../src/editor.ts';
 
-const place = (state, rect = { col: 0, row: 0, cols: 3, rows: 2 }) => editorReducer(state, { type: 'place', rect });
+const place = (state, rect = { col: 0, row: 0, cols: 3, rows: 2 }) =>
+  editorReducer(state, { type: 'place', rect });
 
 test('invalid input preserves the last valid document and its persisted layout until corrected', () => {
-  const initial = place(createEditor()), saved = serializeDocument(initial.document);
+  const initial = place(createEditor()),
+    saved = serializeDocument(initial.document);
   const values = { ...settingsDraft(initial.document.settings), width: '' };
   const invalid = editorReducer(initial, { type: 'apply-settings', values });
   assert.equal(invalid.error.field, 'width');
@@ -15,7 +24,10 @@ test('invalid input preserves the last valid document and its persisted layout u
   assert.equal(invalid.document, initial.document);
   assert.equal(invalid.result, initial.result);
   assert.equal(serializeDocument(invalid.document), saved);
-  const corrected = editorReducer(invalid, { type: 'apply-settings', values: { ...values, width: '585' } });
+  const corrected = editorReducer(invalid, {
+    type: 'apply-settings',
+    values: { ...values, width: '585' },
+  });
   assert.equal(corrected.error, null);
   assert.equal(corrected.document.settings.width, 585);
   assert.deepEqual(corrected.document.placements, initial.document.placements);
@@ -40,30 +52,62 @@ test('preset changes clear the grid, and undo/redo restore both settings and pla
 test('selection and duplicate blur submissions do not create history entries', () => {
   const initial = place(createEditor());
   const selected = editorReducer(initial, { type: 'select', id: null });
-  const applied = editorReducer(selected, { type: 'apply-settings', values: settingsDraft(selected.document.settings) });
+  const applied = editorReducer(selected, {
+    type: 'apply-settings',
+    values: settingsDraft(selected.document.settings),
+  });
   assert.equal(applied.past.length, initial.past.length);
   assert.equal(applied.document, initial.document);
   assert.equal(applied.result, initial.result);
 });
 
 test('existing version 2 drafts round-trip without changing part geometry or 3MF inputs', () => {
-  const initial = place(createEditor({ settings: { ...DEFAULTS, width: 585, height: 330, depth: 330, bedWidth: 330, bedDepth: 320, bedHeight: 325 }, placements: [] }));
+  const initial = place(
+    createEditor({
+      settings: {
+        ...DEFAULTS,
+        width: 585,
+        height: 330,
+        depth: 330,
+        bedWidth: 330,
+        bedDepth: 320,
+        bedHeight: 325,
+      },
+      placements: [],
+    }),
+  );
   const restored = createEditor(readSavedDocument(JSON.parse(serializeDocument(initial.document))));
   assert.deepEqual(restored.document, initial.document);
   assert.deepEqual(restored.result.parts, initial.result.parts);
   assert.equal(restored.result.printable, true);
   assert.ok(restored.result.warnings.length > 0);
-  assert.throws(() => readSavedDocument({ app: 'boxfinity', version: 1, settings: DEFAULTS, placements: [] }), /新版/);
-  assert.throws(() => readSavedDocument({ app: 'boxfinity', version: 2, settings: DEFAULTS, placements: [{ id: 1, col: 99, row: 0, cols: 1, rows: 1 }] }));
+  assert.throws(
+    () => readSavedDocument({ app: 'boxfinity', version: 1, settings: DEFAULTS, placements: [] }),
+    /新版/,
+  );
+  assert.throws(() =>
+    readSavedDocument({
+      app: 'boxfinity',
+      version: 2,
+      settings: DEFAULTS,
+      placements: [{ id: 1, col: 99, row: 0, cols: 1, rows: 1 }],
+    }),
+  );
 });
 
 test('grid changes are also applied before save/export, rather than exporting a stale layout', () => {
   const initial = place(createEditor());
-  const result = applyDraft(initial.document, { ...settingsDraft(initial.document.settings), cols: '10' });
+  const result = applyDraft(initial.document, {
+    ...settingsDraft(initial.document.settings),
+    cols: '10',
+  });
   assert.equal(result.cfg.cols, 10);
   assert.equal(result.placements.length, 0);
   assert.equal(result.printable, false);
-  assert.throws(() => applyDraft(initial.document, { ...settingsDraft(initial.document.settings), width: '' }), /宽度/);
+  assert.throws(
+    () => applyDraft(initial.document, { ...settingsDraft(initial.document.settings), width: '' }),
+    /宽度/,
+  );
 });
 
 test('overlapping placements and invalid imported documents leave the current design recoverable', () => {
@@ -92,10 +136,17 @@ test('printer presets update all axes together while preserving the cabinet, lay
     assert.deepEqual(next.document.placements, initial.document.placements);
     assert.deepEqual(next.draft, settingsDraft(next.document.settings));
     assert.equal(next.document.printerPresetId, preset.id);
-    assert.deepEqual(next.result.parts[0].print.available, [preset.volume.bedWidth, preset.volume.bedDepth, preset.volume.bedHeight]);
+    assert.deepEqual(next.result.parts[0].print.available, [
+      preset.volume.bedWidth,
+      preset.volume.bedDepth,
+      preset.volume.bedHeight,
+    ]);
     assert.equal(next.past.length, initial.past.length + 1);
     assert.deepEqual(editorReducer(next, { type: 'undo' }).document, initial.document);
-    assert.deepEqual(editorReducer(editorReducer(next, { type: 'undo' }), { type: 'redo' }).document, next.document);
+    assert.deepEqual(
+      editorReducer(editorReducer(next, { type: 'undo' }), { type: 'redo' }).document,
+      next.document,
+    );
   }
 });
 
@@ -113,7 +164,10 @@ test('printer identity survives equal-volume models, grid changes and version 2 
 
 test('editing an axis switches to custom and undo restores the selected printer', () => {
   const initial = choosePrinter(place(createEditor()), 'snapmaker-u1');
-  const custom = editorReducer(initial, { type: 'apply-settings', values: { ...initial.draft, bedWidth: '271.5' } });
+  const custom = editorReducer(initial, {
+    type: 'apply-settings',
+    values: { ...initial.draft, bedWidth: '271.5' },
+  });
   assert.equal(custom.document.printerPresetId, undefined);
   assert.equal(custom.document.settings.bedWidth, 271.5);
   assert.deepEqual(custom.document.placements, initial.document.placements);
@@ -125,12 +179,18 @@ test('editing an axis switches to custom and undo restores the selected printer'
 
 test('choosing a printer repairs invalid printer inputs without committing unrelated invalid input', () => {
   const initial = place(createEditor());
-  const invalidBed = editorReducer(initial, { type: 'apply-settings', values: { ...initial.draft, bedWidth: '' } });
+  const invalidBed = editorReducer(initial, {
+    type: 'apply-settings',
+    values: { ...initial.draft, bedWidth: '' },
+  });
   const repaired = choosePrinter(invalidBed, 'flashforge-ad5x');
   assert.equal(repaired.error, null);
   assert.equal(repaired.draft.bedWidth, '220');
   assert.equal(repaired.draft.bedHeight, '220');
-  const invalidCabinet = editorReducer(initial, { type: 'apply-settings', values: { ...initial.draft, width: '' } });
+  const invalidCabinet = editorReducer(initial, {
+    type: 'apply-settings',
+    values: { ...initial.draft, width: '' },
+  });
   const rejected = choosePrinter(invalidCabinet, 'snapmaker-u1');
   assert.equal(rejected.error.field, 'width');
   assert.equal(rejected.document, initial.document);
@@ -139,15 +199,28 @@ test('choosing a printer repairs invalid printer inputs without committing unrel
 });
 
 test('old drafts keep their exact dimensions and stale preset metadata never overrides them', () => {
-  const old = { app: 'boxfinity', version: 2, settings: { ...DEFAULTS, bedWidth: 330, bedDepth: 320, bedHeight: 325 }, placements: [] };
+  const old = {
+    app: 'boxfinity',
+    version: 2,
+    settings: { ...DEFAULTS, bedWidth: 330, bedDepth: 320, bedHeight: 325 },
+    placements: [],
+  };
   for (const printerPresetId of [undefined, 'unknown', 'bambu-h2c-right', { id: 'snapmaker-u1' }]) {
     const restored = readSavedDocument({ ...old, printerPresetId });
     assert.deepEqual(restored.settings, old.settings);
     assert.equal(restored.printerPresetId, undefined);
   }
   assert.equal(new Set(PRINTER_PRESETS.map((preset) => preset.id)).size, PRINTER_PRESETS.length);
-  assert.deepEqual(printerPreset('bambu-h2c-right').volume, { bedWidth: 305, bedDepth: 320, bedHeight: 325 });
-  assert.deepEqual(printerPreset('snapmaker-artisan-dual').volume, { bedWidth: 350, bedDepth: 400, bedHeight: 400 });
+  assert.deepEqual(printerPreset('bambu-h2c-right').volume, {
+    bedWidth: 305,
+    bedDepth: 320,
+    bedHeight: 325,
+  });
+  assert.deepEqual(printerPreset('snapmaker-artisan-dual').volume, {
+    bedWidth: 350,
+    bedDepth: 400,
+    bedHeight: 400,
+  });
 });
 
 test('X2D nozzle modes enforce fractional X and distinct Z limits while H3C uses its full volume', () => {
@@ -166,7 +239,8 @@ test('X2D nozzle modes enforce fractional X and distinct Z limits while H3C uses
 });
 
 test('a stale toast timeout cannot dismiss a newer notice or alter design history', () => {
-  const initial = place(createEditor()), saved = serializeDocument(initial.document);
+  const initial = place(createEditor()),
+    saved = serializeDocument(initial.document);
   const first = editorReducer(initial, { type: 'notify', message: '方案已保存' });
   const selected = editorReducer(first, { type: 'select', id: null });
   assert.equal(selected.notice, first.notice);

@@ -43,10 +43,17 @@ export type StructureKey = keyof typeof explanations;
 
 export function StructureHelp({ name, ...context }: HelpContext & { name: StructureKey }) {
   const { title, description, effect } = explanations[name];
-  return <HelpTooltip id={`structure-help-${name}`} label={title} className="structure-help" {...context}>
-    <strong>{title}</strong>
-    <div className="help-description">{description}</div>
-    <StructureDiagram name={name} />
-    <p>{effect}</p>
-  </HelpTooltip>;
+  return (
+    <HelpTooltip
+      id={`structure-help-${name}`}
+      label={title}
+      className="structure-help"
+      {...context}
+    >
+      <strong>{title}</strong>
+      <div className="help-description">{description}</div>
+      <StructureDiagram name={name} />
+      <p>{effect}</p>
+    </HelpTooltip>
+  );
 }
