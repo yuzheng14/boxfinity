@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, design, settings, recommendGrids, partFits } from '../web/core.mjs';
-import { rectangleBetween, placementError, addPlacement, fillEmpty, exampleLayout } from '../web/layout.mjs';
-import { partMesh, meshVolume } from '../web/geometry.mjs';
-import { modelXML, plate3MF, printBundle } from '../web/export.mjs';
-import { crc32 } from '../web/zip.mjs';
+import { DEFAULTS, design, settings, recommendGrids, partFits } from '../src/core.mjs';
+import { rectangleBetween, placementError, addPlacement, fillEmpty, exampleLayout } from '../src/layout.mjs';
+import { partMesh, meshVolume } from '../src/geometry.mjs';
+import { modelXML, plate3MF, printBundle } from '../src/export.mjs';
+import { crc32 } from '../src/zip.mjs';
 const near=(a,b,tolerance=1e-3)=>assert.ok(Math.abs(a-b)<tolerance,`${a} ≈ ${b}`);
 const shapes=[
   {id:1,col:0,row:0,cols:1,rows:1},

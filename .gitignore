@@ -4,7 +4,6 @@ artifacts/
 result.json
 *.log
 dist/
-web/vendor/
 
 .env
 .env.*

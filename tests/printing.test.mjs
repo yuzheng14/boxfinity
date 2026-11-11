@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {design,packPlates} from '../web/core.mjs';
-import {partMesh,meshVolume} from '../web/geometry.mjs';
-import {PRINT_ORIENTATIONS,availablePrintVolume,preferredPrintVolume,dimensionsFor,orientPoint,printTransform,pointOnPlate,printFit} from '../web/printing.mjs';
-import {modelXML,printBundle} from '../web/export.mjs';
+import {design,packPlates} from '../src/core.mjs';
+import {partMesh,meshVolume} from '../src/geometry.mjs';
+import {PRINT_ORIENTATIONS,availablePrintVolume,preferredPrintVolume,dimensionsFor,orientPoint,printTransform,pointOnPlate,printFit} from '../src/printing.mjs';
+import {modelXML,printBundle} from '../src/export.mjs';
 // Keep the original nonzero margin explicit in the legacy screenshot regression.
 const cfg={width:585,height:330,depth:330,bedWidth:330,bedDepth:320,bedHeight:325,margin:3};
 const layout=[
