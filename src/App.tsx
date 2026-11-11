@@ -14,18 +14,18 @@ import { PreviewWorkspace } from './components/PreviewWorkspace.tsx';
 import { ExportDialog, HelpDialog } from './components/Dialogs.tsx';
 
 export default function App() {
-  const { editor, draft, changeField, applyNow, run } = useEditor();
-  const sidebarRef = useRef<HTMLElement | null>(null), scrollRef = useRef<HTMLDivElement | null>(null), importRef = useRef<HTMLInputElement | null>(null), toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const { editor, draft, changeField, applyNow, run, notify, dismissNotice } = useEditor();
+  const sidebarRef = useRef<HTMLElement | null>(null), scrollRef = useRef<HTMLDivElement | null>(null), importRef = useRef<HTMLInputElement | null>(null);
   const [viewport, setViewport] = useState<Viewport>({ view: '3d', tool: 'draw', pull: true, plateIndex: 0, plateMode: 'isometric' });
   const [resetRevision, setResetRevision] = useState(0);
-  const [exportResult, setExportResult] = useState<DesignResult | null>(null), [helpOpen, setHelpOpen] = useState(false), [toast, setToast] = useState<string | null>(null);
+  const [exportResult, setExportResult] = useState<DesignResult | null>(null), [helpOpen, setHelpOpen] = useState(false);
   const updateViewport = useCallback((patch: Partial<Viewport>) => setViewport((previous) => ({ ...previous, ...patch })), []);
-  const notify = useCallback((message: string) => {
-    clearTimeout(toastTimer.current); setToast(message);
-    toastTimer.current = setTimeout(() => setToast(null), 3500);
-  }, []);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
-  useEffect(() => { if (editor.notice) notify(editor.notice.message); }, [editor.notice, notify]);
+  useEffect(() => {
+    const notice = editor.notice;
+    if (!notice) return;
+    const timer = setTimeout(() => dismissNotice(notice), 3500);
+    return () => clearTimeout(timer);
+  }, [editor.notice, dismissNotice]);
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => {
       const target = event.target;
@@ -105,6 +105,6 @@ export default function App() {
       notify('盒子、框套与装配清单已下载');
     }} />
     <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
-    <div id="toast" className="toast" role="status" hidden={!toast}>{toast}</div>
+    <div id="toast" className="toast" role="status" hidden={!editor.notice}>{editor.notice?.message}</div>
   </>;
 }

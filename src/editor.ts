@@ -4,14 +4,17 @@ import { addPlacement, fillEmpty, exampleLayout } from './layout.ts';
 import { printerPreset, matchesPrinterVolume } from './printers.ts';
 
 export interface EditorError { message: string; field?: SettingKey }
+export interface EditorNotice { message: string }
 export interface EditorState {
   document: DesignDocument; result: DesignResult; selected: number | null;
   past: DesignDocument[]; future: DesignDocument[]; error: EditorError | null;
-  notice: { message: string } | null; draft: SettingsDraft;
+  notice: EditorNotice | null; draft: SettingsDraft;
 }
 export type EditorAction =
   | { type: 'edit-field' | 'apply-settings'; values: SettingsDraft }
   | { type: 'invalid'; error: unknown }
+  | { type: 'notify'; message: string }
+  | { type: 'dismiss-notice'; notice: EditorNotice }
   | { type: 'select'; id: number | null }
   | { type: 'undo' | 'redo' | 'reset' | 'delete' | 'clear' | 'fill' | 'example' }
   | { type: 'load'; document: DesignDocument }
@@ -59,21 +62,23 @@ function commit(state: EditorState, next: DesignDocument, { selected = state.sel
     selected: result.boxes.some((box) => box.id === selected) ? selected : null,
     past: changed ? [...state.past.slice(-49), state.document] : state.past,
     future: changed ? [] : state.future, error: null,
-    notice: message ? { message } : null, draft: syncForm ? settingsDraft(document.settings) : state.draft,
+    notice: message ? { message } : state.notice, draft: syncForm ? settingsDraft(document.settings) : state.draft,
   };
 }
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  if (action.type === 'notify') return { ...state, notice: { message: action.message } };
+  if (action.type === 'dismiss-notice') return state.notice === action.notice ? { ...state, notice: null } : state;
   if (action.type === 'edit-field') return { ...state, draft: action.values };
   if (action.type === 'apply-settings') state = { ...state, draft: action.values };
   try {
-    if (action.type === 'invalid') return { ...state, error: errorDetails(action.error), notice: null };
-    if (action.type === 'select') return { ...state, selected: action.id, notice: null };
+    if (action.type === 'invalid') return { ...state, error: errorDetails(action.error), notice: state.notice };
+    if (action.type === 'select') return { ...state, selected: action.id };
     if (action.type === 'undo' || action.type === 'redo') {
       const backwards = action.type === 'undo', source = backwards ? state.past : state.future;
       if (!source.length) return state;
       const document = source[source.length - 1], result = design(document.settings, document.placements);
       return {
-        ...state, document, result, error: null, notice: null,
+        ...state, document, result, error: null,
         selected: result.boxes.some((box) => box.id === state.selected) ? state.selected : null,
         past: backwards ? source.slice(0, -1) : [...state.past, state.document],
         future: backwards ? [...state.future, state.document] : source.slice(0, -1),
@@ -119,6 +124,6 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     // Invalid placements are transient; invalid parameters remain visible until corrected.
     return action.type === 'place'
       ? { ...state, notice: { message: errorDetails(error).message } }
-      : { ...state, error: errorDetails(error), notice: null };
+      : { ...state, error: errorDetails(error), notice: state.notice };
   }
 }
