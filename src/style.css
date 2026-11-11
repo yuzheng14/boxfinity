@@ -99,13 +99,7 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .structure-settings summary svg { width: 12px; height: 12px; color: #b0b1ae; }
 .structure-settings[open] summary svg { transform: rotate(45deg); }
 .structure-settings .fields { margin-top: 19px; gap: 15px 12px; }
-.brush-sizes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-.brush-sizes button { padding: 8px 0; border: 1px solid #e1e1de; border-radius: 5px; background: #fff; color: #949594; font: 11px var(--mono); }
-.brush-sizes button.active { border-color: #a99a86; background: #f7f4ef; color: #816746; }
 .field-note { margin: 11px 0 0; color: #a5a6a4; font-size: 10px; line-height: 1.7; }
-.layout-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
-.layout-actions .text-button { font-size: 10px; color: #929390; }
-.layout-actions .text-button:hover { color: #6a553b; }
 .box-list { display: flex; flex-direction: column; gap: 5px; }
 .box-list > .field-note { margin: 0; }
 .box-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px; border: 1px solid transparent; border-radius: 5px; background: #f7f7f5; color: #767775; font-size: 10px; text-align: left; }
@@ -126,10 +120,10 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .sidebar-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 23px; border-top: 1px solid var(--line); flex-shrink: 0; background: #fff; }
 .sidebar-footer > span { font-size: 9px; color: #b3b4b0; }
 .sidebar-footer .text-button { font-size: 9px; color: #a3a4a0; }
-.preview-workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.viewport-toolbar { display: flex; align-items: center; gap: 13px; height: 55px; padding: 0 22px; border-bottom: 1px solid #e6e6e2; background: #fafaf8; flex-shrink: 0; }
-.tool-group, .view-group, .history-tools { display: flex; gap: 3px; align-items: center; }
-.tool-button, .view-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid transparent; color: #a1a29e; border-radius: 5px; padding: 7px 10px; font-size: 10px; }
+.preview-workspace { container-type: inline-size; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.viewport-toolbar { display: flex; align-items: center; gap: 13px; min-height: 55px; padding: 10px 22px; flex-wrap: wrap; border-bottom: 1px solid #e6e6e2; background: #fafaf8; flex-shrink: 0; }
+.tool-group, .view-group, .history-tools, .layout-actions { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
+.tool-button, .view-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid transparent; color: #a1a29e; border-radius: 5px; padding: 7px 10px; font-size: 10px; white-space: nowrap; }
 .tool-button.active { background: #eeece7; color: #77664e; }
 .tool-button:hover:not(:disabled), .view-button:hover:not(:disabled) { color: #5b5e57; }
 .tool-button svg, .view-button svg { width: 14px; height: 14px; }
@@ -138,6 +132,9 @@ h2 > span { font-size: 10px; color: #a0a1a2; font-weight: 400; margin-left: auto
 .history-tools svg { width: 14px; height: 14px; }
 .view-group { margin-left: auto; }
 .view-button.active { color: #61645c; background: #eaeae8; }
+@container (max-width: 850px) {
+  .layout-actions { order: 1; flex-basis: 100%; padding-top: 7px; border-top: 1px solid #e6e6e2; }
+}
 .stage { position: relative; flex: 1; min-height: 220px; overflow: hidden; background: radial-gradient(ellipse at 50% 42%, #fafaf9, #f0f0ed); touch-action: none; overscroll-behavior: contain; }
 .stage.draw-tool { cursor: crosshair; }
 .stage.plate-view { cursor: grab; }
@@ -204,7 +201,7 @@ dialog > p { font-size: 11px; line-height: 1.8; color: #9c9c94; }
 @media (max-width: 1000px) {
   .workspace { grid-template-columns: 285px minmax(0,1fr); }
   .parameter-section { padding: 19px; }
-  .viewport-toolbar { padding: 0 13px; gap: 6px; }
+  .viewport-toolbar { padding: 8px 13px; gap: 6px; }
   .tool-button, .view-button { padding: 7px; font-size: 9px; gap: 4px; }
   .history-tools { gap: 0; }
   .history-tools .icon-button { width: 24px; }
@@ -225,8 +222,8 @@ dialog > p { font-size: 11px; line-height: 1.8; color: #9c9c94; }
   .fields { gap: 7px; }
   .input-shell input { padding-left: 8px; font-size: 11px; }
   .input-shell > span { padding-right: 6px; font-size: 8px; }
-  .viewport-toolbar { height: 48px; }
-  .tool-button span, .view-button svg { display: none; }
+  .viewport-toolbar { min-height: 48px; }
+  .tool-group .tool-button span, .view-button svg { display: none; }
   .tool-button { padding: 7px 6px; }
   .toolbar-separator { display: none; }
   .view-group { gap: 0; }
@@ -249,9 +246,8 @@ dialog > p { font-size: 11px; line-height: 1.8; color: #9c9c94; }
   .custom-grid { margin-top:0; }
   .custom-grid label { display: flex; align-items: center; justify-content: space-between; gap: 9px; white-space: nowrap; }
   .custom-grid .input-shell { width: 80px; height: 29px; margin-top: 0; }
-  .drawing-section { padding-top: 15px; }
-  .viewport-toolbar { height: 43px; padding: 0 12px; }
-  .tool-button span, .view-button svg { display: inline; }
+  .viewport-toolbar { min-height: 43px; padding: 6px 12px; }
+  .view-button svg { display: inline; }
   .tool-button { font-size: 9px; gap: 4px; }
   .view-button { font-size: 9px; gap: 4px; padding: 6px; }
   .toolbar-separator { display: block; margin: 0 3px; }

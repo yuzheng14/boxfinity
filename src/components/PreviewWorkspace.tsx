@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { EditorState, RunEditorAction } from '../editor.ts';
 import { errorDetails } from '../editor.ts';
-import type { GridCell, GridShape } from '../types.ts';
+import type { GridCell } from '../types.ts';
 import type { View, Tool, Viewport, UpdateViewport } from '../view-types.ts';
 import { useEffect, useRef, useState } from 'react';
 import { CabinetPreview } from '../renderer.ts';
@@ -10,21 +10,21 @@ import { display } from '../core.ts';
 import { Icon } from './Icons.tsx';
 
 interface PreviewWorkspaceProps {
-  editor: EditorState; brush: GridShape; viewport: Viewport; updateViewport: UpdateViewport;
+  editor: EditorState; viewport: Viewport; updateViewport: UpdateViewport;
   setView: (view: View) => void; setTool: (tool: Tool) => void; run: RunEditorAction;
   onDownload: (index: number) => void; resetRevision: number;
 }
 interface Gesture { start: GridCell; end: GridCell; x: number; y: number; moved: boolean; existing: number | null }
 
 
-export function PreviewWorkspace({ editor, brush, viewport, updateViewport, setView, setTool, run, onDownload, resetRevision }: PreviewWorkspaceProps) {
+export function PreviewWorkspace({ editor, viewport, updateViewport, setView, setTool, run, onDownload, resetRevision }: PreviewWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null), overlayRef = useRef<SVGSVGElement | null>(null), stageRef = useRef<HTMLDivElement | null>(null), previewRef = useRef<CabinetPreview | null>(null), gestureRef = useRef<Gesture | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const { result, selected, error, past, future } = editor, { cfg, grid } = result;
   const plateIndex = Math.max(0, Math.min(viewport.plateIndex, result.plates.length - 1));
   const { view, tool, pull, plateMode } = viewport, isPlate = view === 'plate';
-  const current = useRef({ editor, brush, viewport, updateViewport, run });
-  current.current = { editor, brush, viewport, updateViewport, run };
+  const current = useRef({ viewport, updateViewport });
+  current.current = { viewport, updateViewport };
 
   useEffect(() => {
     const canvas = canvasRef.current, overlay = overlayRef.current, stage = stageRef.current;
@@ -75,7 +75,7 @@ export function PreviewWorkspace({ editor, brush, viewport, updateViewport, setV
     const existing = editor.document.placements.find((box) => cell.col >= box.col && cell.col < box.col + box.cols && cell.row >= box.row && cell.row < box.row + box.rows);
     gestureRef.current = { start: cell, end: cell, x: event.clientX, y: event.clientY, moved: false, existing: existing?.id ?? null };
     if (!existing) {
-      const rect = { ...cell, ...brush };
+      const rect = { ...cell, cols: 1, rows: 1 };
       preview.ghost = { ...rect, invalid: !!placementError(rect, editor.document.placements, result.grid) }; preview.renderOverlay();
     }
     event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.classList.add('dragging');
@@ -98,7 +98,7 @@ export function PreviewWorkspace({ editor, brush, viewport, updateViewport, setV
     gestureRef.current = null; event.currentTarget.classList.remove('dragging'); preview.ghost = null;
     if (event.type !== 'pointercancel') {
       if (!gesture.moved && gesture.existing !== null) run({ type: 'select', id: gesture.existing });
-      else run({ type: 'place', rect: gesture.moved ? rectangleBetween(gesture.start, gesture.end) : { ...gesture.start, ...brush } });
+      else run({ type: 'place', rect: gesture.moved ? rectangleBetween(gesture.start, gesture.end) : { ...gesture.start, cols: 1, rows: 1 } });
     }
     preview.renderOverlay();
   }
@@ -107,16 +107,21 @@ export function PreviewWorkspace({ editor, brush, viewport, updateViewport, setV
     if (error || !['Enter', ' '].includes(event.key)) return;
     const cell = event.target instanceof Element ? event.target.closest<SVGElement>('[data-col]') : null;
     if (!cell) return;
-    event.preventDefault(); run({ type: 'place', rect: { col: Number(cell.dataset.col), row: Number(cell.dataset.row), ...brush } });
+    event.preventDefault(); run({ type: 'place', rect: { col: Number(cell.dataset.col), row: Number(cell.dataset.row), cols: 1, rows: 1 } });
   }
   const plate = result.plates[plateIndex];
   const status = error ? '参数无效，请调整后继续' : result.issues.length ? `${result.issues.length} 个零件超出打印范围` : result.boxes.length ? `${result.parts.length} 个零件 · ${result.plates.length} 盘${result.warnings.length ? ` · ${result.warnings.length} 个零件有提醒` : ''}` : '拖选网格开始设计';
   const hint = isPlate || tool === 'orbit' ? '双指滑动旋转 · 捏合缩放' : '拖选绘制 · 双指旋转 · 捏合缩放 · Delete 删除';
   return <section className={`preview-workspace${isPlate ? ' is-plate' : ''}`} aria-label="柜体三维预览与网格编辑">
     <div className="viewport-toolbar">
-      <div className="tool-group" role="group" aria-label="编辑工具" hidden={isPlate}>{([['draw', '绘制盒子', 'draw'], ['orbit', '旋转视角', 'orbit']] as const).map(([value, label, icon]) => <button key={value} className={`tool-button${tool === value ? ' active' : ''}`} data-tool={value} aria-pressed={tool === value} onClick={() => setTool(value)}><Icon name={icon} /><span>{label}</span></button>)}</div>
+      <div className="tool-group" role="group" aria-label="编辑工具" hidden={isPlate}>{([['draw', '绘制盒子', 'draw'], ['orbit', '旋转视角', 'orbit']] as const).map(([value, label, icon]) => <button key={value} className={`tool-button${tool === value ? ' active' : ''}`} data-tool={value} aria-label={label} title={label} aria-pressed={tool === value} onClick={() => setTool(value)}><Icon name={icon} /><span>{label}</span></button>)}</div>
       <span className="toolbar-separator" hidden={isPlate} />
       <div className="history-tools" hidden={isPlate}>{([['undo', '撤销', past], ['redo', '重做', future]] as const).map(([type, label, history]) => <button key={type} id={`${type}-button`} className="icon-button" aria-label={label} title={label} disabled={!history.length} onClick={() => run({ type })}><Icon name={type} /></button>)}</div>
+      <div className="layout-actions" role="group" aria-label="布局操作" hidden={isPlate}>
+        <button id="fill-button" className="tool-button" disabled={!!error || result.coverage === 100} onClick={() => run({ type: 'fill' })}>填满空格</button>
+        <button id="example-button" className="tool-button" disabled={!!error} onClick={() => run({ type: 'example' })}>示例布局</button>
+        <button id="clear-button" className="tool-button" disabled={!!error || !result.boxes.length} onClick={() => run({ type: 'clear' })}><Icon name="trash" />清空</button>
+      </div>
       <div className="view-group" role="group" aria-label="预览视图">{([['front', '正面', 'front'], ['3d', '3D', 'box'], ['plate', '打印盘', 'printer']] as const).map(([value, label, icon]) => <button key={value} className={`view-button${view === value ? ' active' : ''}`} data-view={value} aria-pressed={view === value} disabled={value === 'plate' && (!result.printable || !!error)} onClick={() => setView(value)}><Icon name={icon} />{label}</button>)}</div>
     </div>
     <div id="design-error" className="error-banner" role="alert" hidden={!error}>{error?.message}</div>

@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import type { DesignResult, GridShape, Plate } from './types.ts';
+import type { DesignResult, Plate } from './types.ts';
 import type { View, Tool, Viewport } from './view-types.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { design } from './core.ts';
@@ -9,14 +9,13 @@ import { download } from './download.ts';
 import { useEditor } from './use-editor.ts';
 import { Icons, Icon } from './components/Icons.tsx';
 import { Parameters } from './components/Parameters.tsx';
-import { DrawingControls, BoxList } from './components/BoxList.tsx';
+import { BoxList } from './components/BoxList.tsx';
 import { PreviewWorkspace } from './components/PreviewWorkspace.tsx';
 import { ExportDialog, HelpDialog } from './components/Dialogs.tsx';
 
 export default function App() {
   const { editor, draft, changeField, applyNow, run } = useEditor();
   const sidebarRef = useRef<HTMLElement | null>(null), scrollRef = useRef<HTMLDivElement | null>(null), importRef = useRef<HTMLInputElement | null>(null), toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [brush, setBrush] = useState<GridShape>({ cols: 1, rows: 1 });
   const [viewport, setViewport] = useState<Viewport>({ view: '3d', tool: 'draw', pull: true, plateIndex: 0, plateMode: 'isometric' });
   const [resetRevision, setResetRevision] = useState(0);
   const [exportResult, setExportResult] = useState<DesignResult | null>(null), [helpOpen, setHelpOpen] = useState(false), [toast, setToast] = useState<string | null>(null);
@@ -47,7 +46,6 @@ export default function App() {
   function setTool(tool: Tool) {
     setViewport((previous) => ({ ...previous, tool, view: previous.view === 'plate' || (tool === 'orbit' && previous.view === 'front') ? '3d' : previous.view }));
   }
-  function chooseBrush(next: GridShape) { setBrush(next); setTool('draw'); }
   function downloadPlate(plate: Plate | undefined) {
     if (!plate) return;
     download(plate3MF(plate), `boxfinity-cabinet-plate-${String(plate.id).padStart(2, '0')}.3mf`, 'model/3mf');
@@ -94,12 +92,11 @@ export default function App() {
       <aside ref={sidebarRef} className="sidebar" aria-label="设计参数">
         <div ref={scrollRef} className="sidebar-scroll">
           <Parameters editor={editor} draft={draft} changeField={changeField} applyNow={applyNow} run={run} sidebarRef={sidebarRef} scrollRef={scrollRef} />
-          <DrawingControls brush={brush} onBrush={chooseBrush} disabled={!!editor.error} run={run} />
           <BoxList editor={editor} run={run} onExport={() => openExport(true)} />
         </div>
         <div className="sidebar-footer"><span>本地原型</span><button id="reset-button" className="text-button" onClick={() => { run({ type: 'reset' }); setResetRevision((value) => value + 1); }}>恢复默认</button></div>
       </aside>
-      <PreviewWorkspace editor={editor} brush={brush} viewport={viewport} updateViewport={updateViewport} setView={setView} setTool={setTool} run={run} resetRevision={resetRevision}
+      <PreviewWorkspace editor={editor} viewport={viewport} updateViewport={updateViewport} setView={setView} setTool={setTool} run={run} resetRevision={resetRevision}
         onDownload={(index) => { const result = applyNow(); if (result?.printable) downloadPlate(result.plates[index]); }} />
     </main>
     <input ref={importRef} id="import-file" type="file" accept=".json,application/json" hidden onChange={importDesign} />
