@@ -11,7 +11,7 @@ import {
   printTransform,
   pointOnPlate,
 } from '../src/printing.ts';
-import { modelXML, printBundle } from '../src/export.ts';
+import { modelXML, project3MF, printBundle, MAX_PROJECT_PLATES } from '../src/export.ts';
 // Keep the original nonzero margin explicit in the legacy screenshot regression.
 const cfg = {
   width: 585,
@@ -241,4 +241,119 @@ test('export records actual edge clearance and the unchanged requested margin', 
   assert.equal(placed.filter((item) => item.checkSupports).length, 7);
   for (const item of placed)
     for (const gap of Object.values(item.edgeClearances)) assert.ok(gap >= -1e-6);
+});
+
+test('multi-plate 3MF assigns each mesh once and preserves every local print transform', () => {
+  for (const margin of [1.5, 3]) {
+    const r = design({ ...cfg, margin }, layout),
+      before = structuredClone(r);
+    const bytes = project3MF(r),
+      decode = (name) => new TextDecoder().decode(storedEntry(bytes, name));
+    const model = decode('3D/3dmodel.model'),
+      config = decode('Metadata/model_settings.config');
+    const objects = [...model.matchAll(/<object id="(\d+)"[^>]*>([\s\S]*?)<\/object>/g)];
+    const build = [...model.matchAll(/<item objectid="(\d+)" transform="([^"]+)"/g)];
+    const plates = [...config.matchAll(/<plate>([\s\S]*?)<\/plate>/g)];
+    assert.ok(r.plates.length > 1);
+    assert.equal(plates.length, r.plates.length);
+    assert.equal(objects.length, r.parts.length);
+    assert.equal(build.length, r.parts.length);
+    assert.match(model, /Application">BambuStudio-.*Boxfinity/);
+    const ids = [];
+    const columns = Math.ceil(Math.sqrt(plates.length));
+    let index = 0;
+    plates.forEach(([, plate], plateIndex) => {
+      assert.match(plate, new RegExp(`key="plater_id" value="${plateIndex + 1}"`));
+      const members = [...plate.matchAll(/<model_instance>([\s\S]*?)<\/model_instance>/g)];
+      assert.equal(members.length, r.plates[plateIndex].items.length);
+      members.forEach(([, member], localIndex) => {
+        const item = r.plates[plateIndex].items[localIndex];
+        const id = Number(member.match(/key="object_id" value="(\d+)"/)[1]);
+        ids.push(id);
+        assert.equal(id, Number(objects[index][1]));
+        assert.equal(id, Number(build[index][1]));
+        assert.match(member, /key="instance_id" value="0"/);
+        // Metadata must reference the actual mesh, otherwise the slicer can drop the volume.
+        assert.match(config, new RegExp(`<part id="${id}" subtype="normal_part">`));
+        const matrix = build[index][2].split(' ').map(Number);
+        const origin = [
+          (plateIndex % columns) * r.cfg.bedWidth * 1.2,
+          -Math.floor(plateIndex / columns) * r.cfg.bedDepth * 1.2,
+          0,
+        ];
+        const local = [...matrix];
+        local[9] -= origin[0];
+        local[10] -= origin[1];
+        printTransform(item.part, item).forEach((value, axis) => near(local[axis], value));
+        const vertices = [
+          ...objects[index][2].matchAll(/<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"/g),
+        ].map((match) => match.slice(1).map(Number));
+        assert.equal(vertices.length, partMesh(item.part).vertices.length);
+        vertices.forEach((vertex) => {
+          const actual = transformed(vertex, local);
+          const expected = pointOnPlate(item.part, vertex, item);
+          actual.forEach((value, axis) => near(value, expected[axis]));
+          actual.forEach((value, axis) =>
+            assert.ok(
+              value >= -1e-4 &&
+                value <= [r.cfg.bedWidth, r.cfg.bedDepth, r.cfg.bedHeight][axis] + 1e-4,
+            ),
+          );
+        });
+        index++;
+      });
+    });
+    assert.equal(new Set(ids).size, r.parts.length);
+    assert.deepEqual(r, before, 'export must not change preview geometry or plate positions');
+    assert.match(config, /侧放，检查支撑/);
+    if (margin === 3) assert.match(config, /占用建议边距/);
+    const project = JSON.parse(decode('Metadata/project_settings.config'));
+    assert.deepEqual(project.printable_area, ['0x0', '330x0', '330x320', '0x320']);
+    assert.equal(project.printable_height, '325');
+    assert.equal(project.printer_settings_id, 'Boxfinity');
+    assert.deepEqual(project.nozzle_diameter, ['0.4']);
+    assert.ok(!('machine_start_gcode' in project));
+  }
+});
+
+test('single-plate projects and selected groups keep all their parts', () => {
+  for (const options of [{}, { bedWidth: 1000, bedDepth: 1000, bedHeight: 1000 }]) {
+    const r = design(options, [{ id: 7, col: 0, row: 0, cols: 1, rows: 1 }]);
+    const bytes = project3MF(r);
+    const manifest = JSON.parse(
+      new TextDecoder().decode(storedEntry(bytes, 'Metadata/assembly.json')),
+    );
+    assert.deepEqual(
+      manifest.boxes.map((box) => box.id),
+      [7],
+    );
+    assert.deepEqual(manifest.plates.flatMap((plate) => plate.parts).sort(), [
+      'drawer-7',
+      'frame-7',
+    ]);
+    if (options.bedWidth) assert.equal(r.plates.length, 1);
+    const model = new TextDecoder().decode(storedEntry(bytes, '3D/3dmodel.model'));
+    assert.equal([...model.matchAll(/<item /g)].length, 2);
+  }
+});
+
+test('multi-plate export rejects empty and oversized designs while warning-only designs export', () => {
+  assert.throws(() => project3MF(design()), /绘制盒子/);
+  assert.throws(() => project3MF(design({ ...cfg, depth: 400 }, layout)), /打印范围/);
+  assert.doesNotThrow(() => project3MF(design(cfg, layout)));
+});
+
+test('projects over the slicer plate limit retain ZIP and single-plate exports', () => {
+  const r = design({}, [{ id: 1, col: 0, row: 0, cols: 1, rows: 1 }]);
+  r.plates = Array.from({ length: MAX_PROJECT_PLATES + 1 }, (_, i) => ({
+    ...r.plates[0],
+    id: i + 1,
+  }));
+  assert.throws(() => project3MF(r), /最多支持 36 盘/);
+  const bytes = printBundle(r);
+  const manifest = JSON.parse(new TextDecoder().decode(storedEntry(bytes, 'assembly.json')));
+  assert.equal(manifest.plates.length, MAX_PROJECT_PLATES + 1);
+  assert.ok(!manifest.projectFile);
+  manifest.plates.forEach((plate) => assert.ok(storedEntry(bytes, plate.file).length > 0));
+  assert.match(new TextDecoder().decode(storedEntry(bytes, 'README.txt')), /仅包含单盘/);
 });

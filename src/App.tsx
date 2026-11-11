@@ -3,7 +3,7 @@ import type { DesignResult, Plate } from './types.ts';
 import type { View, Tool, Viewport } from './view-types.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { design } from './core.ts';
-import { plate3MF, printBundle } from './export.ts';
+import { plate3MF, project3MF, printBundle } from './export.ts';
 import {
   readSavedDocument,
   serializeDocument,
@@ -224,6 +224,14 @@ export default function App() {
         result={exportResult}
         onClose={() => setExportResult(null)}
         onPlate={downloadPlate}
+        onProject={(result) => {
+          download(
+            project3MF(result),
+            `boxfinity-cabinet-${result.cfg.width}x${result.cfg.height}.3mf`,
+            'model/3mf',
+          );
+          notify(`全部 ${result.plates.length} 盘 3MF 已下载`);
+        }}
         onBundle={(result) => {
           download(
             printBundle(result),
