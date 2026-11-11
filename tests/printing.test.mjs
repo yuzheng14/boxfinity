@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {design,packPlates} from '../src/core.ts';
 import {partMesh,meshVolume} from '../src/geometry.ts';
-import {PRINT_ORIENTATIONS,availablePrintVolume,preferredPrintVolume,dimensionsFor,orientPoint,printTransform,pointOnPlate,printFit} from '../src/printing.ts';
+import {PRINT_ORIENTATIONS,availablePrintVolume,preferredPrintVolume,dimensionsFor,orientPoint,printTransform,pointOnPlate} from '../src/printing.ts';
 import {modelXML,printBundle} from '../src/export.ts';
 // Keep the original nonzero margin explicit in the legacy screenshot regression.
 const cfg={width:585,height:330,depth:330,bedWidth:330,bedDepth:320,bedHeight:325,margin:3};
