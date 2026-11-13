@@ -207,7 +207,15 @@ test('old drafts keep their exact dimensions and stale preset metadata never ove
   const old = {
     app: 'boxfinity',
     version: 2,
-    settings: { ...DEFAULTS, bedWidth: 330, bedDepth: 320, bedHeight: 325 },
+    settings: {
+      ...DEFAULTS,
+      wall: 1.6,
+      base: 1.6,
+      frameWall: 2.4,
+      bedWidth: 330,
+      bedDepth: 320,
+      bedHeight: 325,
+    },
     placements: [],
   };
   for (const printerPresetId of [undefined, 'unknown', 'bambu-h2c-right', { id: 'snapmaker-u1' }]) {
