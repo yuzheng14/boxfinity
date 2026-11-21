@@ -264,17 +264,21 @@ export function packPlates<T extends Part>(parts: T[], cfg: Settings): Plate<T>[
     }
     if (!best) throw new DesignError('无法在最大打印范围内排放零件');
     const { plate, free, index, orientation, width, depth } = best;
+    // Start at the back (high Y) so any spare depth is at the front, where
+    // the slicer can place its flow calibration line.
+    const back = free.y + free.depth;
+    const y = back - depth;
     const edgeClearances = {
       left: free.x,
       right: cfg.bedWidth - free.x - width,
-      front: free.y,
-      back: cfg.bedDepth - free.y - depth,
+      front: y,
+      back: cfg.bedDepth - back,
     };
     const usesReservedMargin = Object.values(edgeClearances).some((gap) => gap < cfg.margin - 1e-6);
     plate.items.push({
       part,
       x: free.x,
-      y: free.y,
+      y,
       orientation,
       width,
       depth,
@@ -285,11 +289,11 @@ export function packPlates<T extends Part>(parts: T[], cfg: Settings): Plate<T>[
     const remainingW = free.width - width - spacing,
       remainingD = free.depth - depth - spacing;
     if (remainingW > 1e-6)
-      plate.free.push({ x: free.x + width + spacing, y: free.y, width: remainingW, depth });
+      plate.free.push({ x: free.x + width + spacing, y, width: remainingW, depth });
     if (remainingD > 1e-6)
       plate.free.push({
         x: free.x,
-        y: free.y + depth + spacing,
+        y: free.y,
         width: free.width,
         depth: remainingD,
       });
