@@ -238,6 +238,40 @@ test('ordinary parts preserve full margins even when reusing a tighter plate', (
   assert.equal(b.usesReservedMargin, false);
   for (const gap of Object.values(b.edgeClearances)) assert.ok(gap >= 3 - 1e-6);
 });
+test('plate packing fills from the back edge and leaves spare space at the front', () => {
+  const large: DrawerPart = {
+    id: 'large',
+    boxId: 1,
+    label: '大盒',
+    type: 'drawer',
+    width: 90,
+    depth: 55,
+    height: 35,
+    wall: 3.2,
+    base: 3.2,
+    radius: 4,
+  };
+  const nextRow = { ...large, id: 'next-row', boxId: 2, width: 80, depth: 30 };
+  const beside = { ...large, id: 'beside', boxId: 3, width: 40, depth: 45 };
+
+  for (const options of [{}, { margin: 3 }]) {
+    const { cfg } = design({ bedWidth: 150, bedDepth: 120, ...options });
+    const plates = packPlates([large, nextRow, beside], cfg);
+    assert.equal(plates.length, 1);
+    const items = plates[0].items;
+    const first = items.find((item) => item.part === large);
+    const below = items.find((item) => item.part === nextRow);
+    const right = items.find((item) => item.part === beside);
+    assert.ok(first && below && right);
+
+    near(first.y + first.depth, cfg.bedDepth - cfg.margin);
+    near(right.y + right.depth, first.y + first.depth);
+    near(right.x, first.x + first.width + 5);
+    near(below.y + below.depth + 5, first.y);
+    near(Math.min(...items.map((item) => item.y)), 30 - cfg.margin);
+    for (const item of items) near(item.edgeClearances.front, item.y);
+  }
+});
 test('export records actual edge clearance and the unchanged requested margin', () => {
   const r = design(cfg, layout),
     bytes = printBundle(r);
