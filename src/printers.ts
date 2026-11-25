@@ -28,6 +28,7 @@ export const PRINTER_BRANDS: readonly PrinterBrand[] = [
       preset('bambu-p1p', 'P1P', 256, 256, 256),
       preset('bambu-p1s', 'P1S', 256, 256, 256),
       preset('bambu-p2s', 'P2S', 256, 256, 256),
+      preset('bambu-p3c', 'P3C', 256, 256, 260),
       preset('bambu-x1c', 'X1 Carbon', 256, 256, 256),
       preset('bambu-x2d-main', 'X2D · 主喷嘴', 256, 256, 260),
       preset('bambu-x2d-auxiliary', 'X2D · 辅助喷嘴', 235.5, 256, 256),

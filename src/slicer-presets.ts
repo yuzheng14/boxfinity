@@ -29,6 +29,7 @@ const BAMBU_PRESETS: Readonly<Record<string, SlicerPreset>> = {
   'bambu-p1p': bambu('P1P', 'P1P'),
   'bambu-p1s': bambu('P1S', 'X1C', ''),
   'bambu-p2s': bambu('P2S', 'P2S'),
+  'bambu-p3c': bambu('P3C', 'P3C'),
   'bambu-x1c': x1c,
   'bambu-x2d-main': x2d,
   'bambu-x2d-auxiliary': x2d,
