@@ -1,6 +1,6 @@
 # 打印机预设
 
-数据位于 `src/printers.ts`，单位为 mm，轴序为 X（宽）× Y（深）× Z（高）。核对日期：2026-11-11。
+数据位于 `src/printers.ts`，单位为 mm，轴序为 X（宽）× Y（深）× Z（高）。原有机型核对日期为 2026-11-11，P3C 核对日期为 2026-11-25。
 
 只填写官方标称的可打印尺寸；不填写机器外形尺寸或钢板尺寸。额外边距由用户独立设置。尺寸预设不包含支撑或多色擦拭塔占位；整套 3MF 的切片配置映射见下文。
 
@@ -12,6 +12,7 @@
 | 拓竹 A1                              | 256 × 256 × 256                                         | [规格](https://store.bblcdn.com/8137fad1525a4454ac8a28502edbc919.pdf)                                                                                                                                                                                                                        |
 | 拓竹 P1P / P1S                       | 256 × 256 × 256                                         | [P1P 快速入门](https://cdn1.bambulab.com/documentation/quick-start-1914c3e1ea03c/P1P/Chinese%20version-Quick%20Start%20Guide%20for%20P1P.pdf)、[P1S 快速入门](https://cdn1.bambulab.com/documentation/quick-start-59b0cefdc0fc4/P1S/English%20version-Quick%20Start%20Guide%20for%20P1S.pdf) |
 | 拓竹 P2S                             | 256 × 256 × 256                                         | [官方发布](https://blog.bambulab.com/the-icon-redefined-meet-the-p2s-a-completely-reengineered-version-of-the-ultra-productive-p1-series/)                                                                                                                                                   |
+| 拓竹 P3C                             | 256 × 256 × 260                                         | [官方发布与规格](https://blog.bambulab.com/bambu-lab-p3c-brings-home-its-h3c-technology-at-half-the-price/)                                                                                                                                                                                  |
 | 拓竹 X1 Carbon                       | 256 × 256 × 256                                         | [规格](https://public-cdn.bambulab.com/store/bambulab-X1-carbon-tech-specs.pdf)                                                                                                                                                                                                              |
 | 拓竹 X2D，主喷嘴 / 辅助喷嘴 / 双喷嘴 | 256 × 256 × 260 / 235.5 × 256 × 256 / 235.5 × 256 × 256 | [官方规格](https://store.bblcdn.com/s3/default/c36bd23b20bc493a90e3b5e27c32a9a4/X2D_spec.pdf)                                                                                                                                                                                                |
 | 拓竹 H2S                             | 340 × 320 × 340                                         | [官方发布](https://blog.bambulab.com/h2s-the-ultimate-single-nozzle-3d-printer-now-bigger-than-ever/)                                                                                                                                                                                        |
@@ -45,4 +46,4 @@ v2 方案增加可选的顶层 `printerPresetId`，与数值参数共同保存�
 
 自定义、旧版无机型标识的方案、失效/尺寸不符的标识及暂未映射的其他品牌使用 X1 Carbon 0.4 mm 兼容兜底，并在导出弹窗及 ZIP 说明中显示。它不代表用户实际拥有 X1C，也不证明用户的自定义范围能由 X1C 打印；导入后应切换实际机型。其他品牌的有效选择仍记录在装配清单中。单盘 3MF 继续只包含几何。
 
-名称核对：Bambu Studio 02.09.01.70 随附配置；[官方机器、耗材和工艺目录](https://github.com/bambulab/BambuStudio/tree/master/resources/profiles/BBL)，[系统预设验证与载入](https://github.com/bambulab/BambuStudio/blob/master/src/libslic3r/PresetBundle.cpp)，[按差异继承系统配置](https://github.com/bambulab/BambuStudio/blob/master/src/libslic3r/Preset.cpp)。导出依赖用户切片软件安装了对应机型的预设；旧版本缺少新机型时需先更新切片软件或切换实际可用机型。
+名称核对：Bambu Studio 02.09.01.70 随附配置，P3C 预设从 [02.09.02.62](https://github.com/bambulab/BambuStudio/releases/tag/v02.09.02.62) 起提供；[官方机器、耗材和工艺目录](https://github.com/bambulab/BambuStudio/tree/master/resources/profiles/BBL)，[系统预设验证与载入](https://github.com/bambulab/BambuStudio/blob/master/src/libslic3r/PresetBundle.cpp)，[按差异继承系统配置](https://github.com/bambulab/BambuStudio/blob/master/src/libslic3r/Preset.cpp)。导出依赖用户切片软件安装了对应机型的预设；旧版本缺少新机型时需先更新切片软件或切换实际可用机型。

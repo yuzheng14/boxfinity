@@ -369,6 +369,7 @@ test('selected machines inherit their own system profiles, including models with
   for (const [id, machine, process, filament, nozzles] of [
     ['bambu-a1', 'A1', 'A1', 'Generic PETG @BBL A1', 1],
     ['bambu-p1s', 'P1S', 'X1C', 'Generic PETG', 1],
+    ['bambu-p3c', 'P3C', 'P3C', 'Generic PETG @BBL P3C', 1],
     ['bambu-h3c', 'H3C', 'H3C', 'Generic PETG @BBL H3C', 1],
     ['bambu-h2c-right', 'H2C', 'H2C', 'Generic PETG @BBL H2C 0.4 nozzle', 2],
   ] as const) {
