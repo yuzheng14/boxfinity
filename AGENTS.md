@@ -17,15 +17,22 @@
 - 开始前执行 `git status`，说明本次负责的功能与文件范围。提交保持单一目标，避免夹带其他会话的变更。
 - 例：`git fetch origin`，然后 `git worktree add ../boxfinity-<任务名> -b feat/<任务名> origin/main`。
 - 各 worktree 单独安装锁定依赖，可用 `npm run dev -- --port 5175` 指定端口；默认端口占用时 Vite 自动顺延。不要停止其他会话的服务。
+- **PR 由仓库所有者人工合并。代理完成实现、验证和 PR 交付后停止，不得擅自合并 PR、启用自动合并或加入合并队列，也不得直接推送 main 绕过 PR。批准依赖、部署或上传源码不包含合并授权。**
 - 通过 PR 合入 main，不覆盖远端历史。相互独立的任务分别开 PR；存在依赖的多层 PR 按 GitHub 原生 Stacked PR 约定组织，明确各层增量与审查顺序。
 - PR 描述写清问题、变更范围、验证结果和具体 review 重点。UI 变更必须在对应 PR 评论中实际上传运行界面的截图，确认图片可见并提供评论链接；本地路径不算完成。
+
+## 提交与 PR 标题
+
+- 提交信息遵循 [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)，格式为 `<type>[optional scope][!]: <description>`；scope 可选，类型与说明应准确描述该次变更。
+- 常见类型为 `feat`、`fix`、`refactor`、`build`、`ci`、`docs`、`test`、`perf`、`style`、`chore`。破坏兼容的变更使用 `!` 或 `BREAKING CHANGE:` 页脚明确说明。
+- PR 标题也使用同一格式，并描述最终变更范围，便于人工 squash 合并时保留规范。不要为已符合格式的提交无故改写历史。
 
 ## 代码检查
 
 - 已批准开发依赖 `oxlint@^1.93.0` 及其正常传递依赖和平台二进制。`npm run lint` 检查源码、测试与配置，warning 也使检查失败；`npm run lint:fix` 只应用安全修复。
 - 已批准开发依赖 `oxfmt@^0.78.0`、tinypool 和工具自带打包依赖及平台二进制。`npm run format` 写入统一格式，`npm run format:check` 只检查；保持 `.oxfmtrc.json` 的格式约定。生成的 `package-lock.json` 不参与手工格式化，其他忽略沿用 `.gitignore`。
 - `.oxlintrc.json` 使用正确性规则、React/Hooks 与 TypeScript 规则。保持与现有 `strict` 类型检查互补；不要通过批量禁用规则或忽略注释掩盖实际问题。
-- 提交前运行 `npm run format:check`、`npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。提交和 PR 标题遵循 Conventional Commits，PR 由仓库所有者合并。
+- 提交前运行 `npm run format:check`、`npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。
 
 ## 测试约定
 

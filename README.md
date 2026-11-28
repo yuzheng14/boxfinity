@@ -131,7 +131,9 @@ npm ci
 npm run dev -- --port 5175
 ```
 
-默认端口占用时 Vite 会选择下一个可用端口；需要固定会话端口时使用 `--port`。通过 PR 合入 main。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
+默认端口占用时 Vite 会选择下一个可用端口；需要固定会话端口时使用 `--port`。通过 PR 交付变更，由仓库所有者人工合入 main。代理完成检查与审查说明后交付 PR 链接。详细模块边界、验证和截图要求见 [AGENTS.md](./AGENTS.md)。
+
+提交信息和 PR 标题使用 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)，例如 `fix(printing): preserve printable orientation`；scope 可选。PR 标题应描述最终变更，方便审查和人工 squash 合并。
 
 ## 许可证
 
