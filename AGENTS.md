@@ -2,11 +2,12 @@
 
 ## 项目与命令
 
-- 纯静态 ES 模块应用，Node.js >= 22。运行时依赖只有已批准的 `three@^0.187.0`，OrbitControls 来自同一个包。
+- Vite 构建的纯静态 ES 模块应用，Node.js 支持范围为 `^22.12.0 || ^24.0.0 || >=26.0.0`（与 Vitest 一致），CI 使用 Node.js 22。源码使用 TypeScript（strict），界面使用已批准的 `react@^19.3.1`、`react-dom@^19.3.1`；3D 使用 `three@^0.187.0` 及同包 OrbitControls；构建依赖为 `vite@^8.3.7`、`@vitejs/plugin-react@^6.3.0`。类型检查依赖 `typescript@^7.0.2`、`@types/react@^19.3.0`、`@types/react-dom@^19.3.0`、`@types/three@^0.187.0`；这些版本范围、正常传递依赖及 TypeScript 平台二进制已获批准。
 - 引入或更新任何外部依赖、临时工具、CDN 或 CI Action 前，说明名称、版本、用途、取舍、替代方案及传递依赖，并取得人类明确批准。安装锁文件中已有依赖无需重复审批。
-- `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 验证；`npm run build` 生成 `dist/`；`npm run preview` 验证构建。
-- `web/vendor/`、`dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
-- 保留根目录 MIT LICENSE，以及构建输出中 Three.js 的 MIT 许可证。
+- `npm ci` 安装现有锁定依赖；`npm run dev` 开发；`npm test` 通过 Vitest 单次验证；`npm run test:watch` 监听单测；`npm run typecheck` 严格检查源码与测试类型；`npm run build` 先检查类型再生成 `dist/`；`npm run preview` 验证构建。
+- `dist/`、`node_modules/` 和 `artifacts/` 是本地或生成内容，不提交。
+- 入口为根目录 `index.html`，源码放在 `src/`，原样发布的静态资源放在 `public/`；Vite 配置保留 Pages 子路径，其余优先使用默认值。
+- 保留根目录 MIT LICENSE，以及构建输出中的第三方许可证声明（由 Vite 内置功能写入 `dist/THIRD_PARTY_LICENSES.md`）。
 - 已批准的官方 CI Actions：checkout@v7.0.1、setup-node@v7.1.0、configure-pages@v6.0.0、upload-pages-artifact@v5.0.0、deploy-pages@v5.0.1，以及它们的打包依赖和 upload-artifact@v7.0.0。完整提交 SHA 见 `.github/workflows/ci-pages.yml`。新增或升级仍须审批。
 - PR 只测试和构建，main 构建成功后自动发布 Pages；部署写权限只放在独立 deploy job，不使用 pull_request_target 执行 PR 代码。
 
@@ -15,7 +16,7 @@
 - 每个会话使用独立 Git worktree 和功能分支；不要在共享工作目录切换分支或改写其他会话的文件。
 - 开始前执行 `git status`，说明本次负责的功能与文件范围。提交保持单一目标，避免夹带其他会话的变更。
 - 例：`git fetch origin`，然后 `git worktree add ../boxfinity-<任务名> -b feat/<任务名> origin/main`。
-- 各 worktree 单独安装锁定依赖，并使用独立端口，例如 `PORT=4175 npm run dev`。不要停止其他会话的服务。
+- 各 worktree 单独安装锁定依赖，可用 `npm run dev -- --port 5175` 指定端口；默认端口占用时 Vite 自动顺延。不要停止其他会话的服务。
 - **PR 由仓库所有者人工合并。代理完成实现、验证和 PR 交付后停止，不得擅自合并 PR、启用自动合并或加入合并队列，也不得直接推送 main 绕过 PR。批准依赖、部署或上传源码不包含合并授权。**
 - 通过 PR 合入 main，不覆盖远端历史。相互独立的任务分别开 PR；存在依赖的多层 PR 按 GitHub 原生 Stacked PR 约定组织，明确各层增量与审查顺序。
 - PR 描述写清问题、变更范围、验证结果和具体 review 重点。UI 变更必须在对应 PR 评论中实际上传运行界面的截图，确认图片可见并提供评论链接；本地路径不算完成。
@@ -26,10 +27,34 @@
 - 常见类型为 `feat`、`fix`、`refactor`、`build`、`ci`、`docs`、`test`、`perf`、`style`、`chore`。破坏兼容的变更使用 `!` 或 `BREAKING CHANGE:` 页脚明确说明。
 - PR 标题也使用同一格式，并描述最终变更范围，便于人工 squash 合并时保留规范。不要为已符合格式的提交无故改写历史。
 
+## 代码检查
+
+- 已批准开发依赖 `oxlint@^1.93.0` 及其正常传递依赖和平台二进制。`npm run lint` 检查源码、测试与配置，warning 也使检查失败；`npm run lint:fix` 只应用安全修复。
+- 已批准开发依赖 `oxfmt@^0.78.0`、tinypool 和工具自带打包依赖及平台二进制。`npm run format` 写入统一格式，`npm run format:check` 只检查；保持 `.oxfmtrc.json` 的格式约定。生成的 `package-lock.json` 不参与手工格式化，其他忽略沿用 `.gitignore`。
+- `.oxlintrc.json` 使用正确性规则、React/Hooks 与 TypeScript 规则。保持与现有 `strict` 类型检查互补；不要通过批量禁用规则或忽略注释掩盖实际问题。
+- 提交前运行 `npm run format:check`、`npm run lint`、`npm test`、`npm run build`，CI 执行相同检查。
+
+## 测试约定
+
+- 已批准开发依赖 `vitest@^5.1.0`、`@types/node@^22.20.5` 及其正常传递依赖。单测放在 `tests/*.test.ts`，配置为 `vitest.config.ts`，采用 Node 环境和显式导入，不加载 DOM 模拟器。
+- `tsconfig.test.json` 继承严格检查，覆盖测试、辅助夹具和 Vitest 配置。迁移或新增测试必须同时通过运行和类型检查，不用 `any`、忽略指令或非空断言掩盖夹具问题；缺失值用实际断言缩小类型。
+- 已批准 `@playwright/test@^1.65.0` 及正常传递依赖、配套 Chromium/Headless Shell/FFmpeg 和 Linux CI 必需系统库；复用已批准的 upload-artifact@v7.0.0 保存报告。E2E 放在 `e2e/*.spec.ts`，使用 `playwright.config.ts`，也纳入 `tsconfig.test.json`。
+- `npm run test:e2e` 构建后自动启动、停止独立预览服务。默认端口 4318，可用 `BOXFINITY_E2E_PORT` 指定；不复用现有服务。保持默认的隔离浏览器上下文，不连接或清空用户浏览器数据。失败截图/trace 与 HTML 报告是生成内容，不提交。
+- 纯浏览器集成改动运行 E2E；交付前运行单测、lint、format:check、build，涉及浏览器测试的 PR 还要通过 test:e2e。CI 在 E2E 通过后才能部署 Pages。
+- 相机单测的原型夹具仅初始化相机相关属性，复用真实 Three.js/OrbitControls；完整 DOM/WebGL 初始化必须通过浏览器验证。
+
+## TypeScript 与 React 组件边界
+
+- 应用代码使用 `.ts` / `.tsx`，保留 `strict` 与 `erasableSyntaxOnly`。共享尺寸、布局、零件和打印结果契约放在 `types.ts`，视图契约放在 `view-types.ts`；外部 JSON 使用 `unknown` 并经运行时校验。不要通过 `any`、`@ts-ignore` 或关闭检查绕过错误。
+- `App.tsx` 组合应用；`use-editor.ts` 处理表单草稿与持久化；`editor.ts` 管理已验证设计、历史及选择。输入中的无效参数不得覆盖有效方案或 localStorage 草稿；通知属于瞬时编辑状态，不写入方案或撤销历史。
+- `components/` 分别负责参数、测量浮层、盒子列表、三维视口与弹窗。表单和列表由 React 渲染，不恢复全局 DOM 查询及手工替换。
+- `PreviewWorkspace.tsx` 通过稳定的 DOM 挂载回调创建和清理 Three.js 实例。React 不管理其 canvas / SVG 标注子树；卸载时移除事件监听、断开 ResizeObserver、dispose OrbitControls 和渲染资源。保留 StrictMode 的重复挂载检查。
+- 保持 v2 方案文件和 `boxfinity.cabinet.v2` 草稿兼容。框架迁移不改变几何、打印方向或 3MF 坐标。
+
 ## 模型与交互边界
 
 - 柜体正面网格的列对应宽、行对应高，行从上往下；深度独立。
-- `geometry.mjs` 的规范网格与 `printing.mjs` 的打印变换由预览和 3MF 导出共用。调整预览不得暗中改变可打印几何或配合尺寸。
+- `geometry.ts` 的规范网格与 `printing.ts` 的打印变换由预览和 3MF 导出共用。调整预览不得暗中改变可打印几何或配合尺寸。
 - 柜边、框套间隙、抽拉配合与打印盘额外边距是独立参数。额外打印边距默认 0。
 - 超过打印机实际最大 XYZ 才阻止导出；可换方向或占用建议留边是 warning，不阻止导出。
 - Three.js 渲染使用均匀底色与轮廓线，不加场景灯光和投影阴影；立体视图透视投影，正面及俯视正交投影。

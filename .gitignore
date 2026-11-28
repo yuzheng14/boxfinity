@@ -4,9 +4,11 @@ artifacts/
 result.json
 *.log
 dist/
-web/vendor/
 
 .env
 .env.*
 !.env.example
 .worktrees/
+
+playwright-report/
+test-results/

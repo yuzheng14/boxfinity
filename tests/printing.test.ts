@@ -1,0 +1,485 @@
+import { test } from 'vitest';
+import type { Vec3, DrawerPart } from '../src/types.ts';
+import { readZip, entry, readJSON, array, record, records } from './helpers/artifacts.ts';
+import assert from 'node:assert/strict';
+import { design, packPlates } from '../src/core.ts';
+import { partMesh, meshVolume } from '../src/geometry.ts';
+import {
+  PRINT_ORIENTATIONS,
+  availablePrintVolume,
+  preferredPrintVolume,
+  dimensionsFor,
+  orientPoint,
+  printTransform,
+  pointOnPlate,
+} from '../src/printing.ts';
+import { modelXML, project3MF, printBundle, MAX_PROJECT_PLATES } from '../src/export.ts';
+import { printerPreset } from '../src/printers.ts';
+// Keep the original nonzero margin explicit in the legacy screenshot regression.
+const cfg = {
+  width: 585,
+  height: 330,
+  depth: 330,
+  bedWidth: 330,
+  bedDepth: 320,
+  bedHeight: 325,
+  margin: 3,
+};
+const layout = [
+  { id: 1, col: 0, row: 3, cols: 1, rows: 3 },
+  { id: 2, col: 0, row: 2, cols: 3, rows: 1 },
+  { id: 3, col: 1, row: 4, cols: 4, rows: 2 },
+  { id: 4, col: 1, row: 3, cols: 1, rows: 1 },
+  { id: 5, col: 2, row: 3, cols: 2, rows: 1 },
+  { id: 6, col: 5, row: 4, cols: 3, rows: 2 },
+  { id: 7, col: 8, row: 4, cols: 1, rows: 2 },
+];
+const near = (a: number, b: number, tolerance = 1e-4) =>
+  assert.ok(Math.abs(a - b) < tolerance, `${a} ≈ ${b}`);
+const transformed = (v: Vec3, m: readonly number[]): Vec3 => [
+  v[0] * m[0] + v[1] * m[3] + v[2] * m[6] + m[9],
+  v[0] * m[1] + v[1] * m[4] + v[2] * m[7] + m[10],
+  v[0] * m[2] + v[1] * m[5] + v[2] * m[8] + m[11],
+];
+test('screenshot regression: requested 3mm margin warns without blocking a physically fitting layout', () => {
+  const r = design(cfg, layout);
+  assert.deepEqual(availablePrintVolume(r.cfg), [330, 320, 325]);
+  assert.deepEqual(preferredPrintVolume(r.cfg), [324, 314, 325]);
+  assert.equal(r.boxes.length, 7);
+  assert.equal(r.occupied, 25);
+  assert.equal(r.issues.length, 0);
+  assert.equal(r.warnings.length, 14);
+  assert.equal(r.printable, true);
+  assert.equal(r.marginParts.length, 14);
+  assert.equal(r.supportParts.length, 7);
+  assert.equal(r.cfg.margin, 3);
+  assert.deepEqual(r.placements, layout);
+  assert.equal(r.boxes[0].frame.height, 327);
+  assert.equal(r.boxes[0].drawer.depth, 326.5);
+  const frameWarning = r.warnings.find((issue) => issue.partId === 'frame-1');
+  assert.ok(frameWarning);
+  assert.match(frameWarning.message, /最小留边 1.5 mm.*建议的 3 mm/);
+  const drawerWarning = r.warnings.find((issue) => issue.partId === 'drawer-1');
+  assert.ok(drawerWarning);
+  assert.match(drawerWarning.message, /最小留边 1.75 mm.*建议的 3 mm/);
+  assert.doesNotThrow(() => printBundle(r));
+});
+test('Z-only orientation limits are warnings when an alternative pose fits', () => {
+  for (const margin of [1.5, 0]) {
+    const r = design({ ...cfg, margin }, layout);
+    assert.equal(r.issues.length, 0);
+    assert.equal(r.warnings.length, 7);
+    assert.equal(r.printable, true);
+    for (const warning of r.warnings) {
+      assert.equal(warning.severity, 'warning');
+      assert.match(warning.message, /开口朝上时.*Z 需 327.*325.*多 2 mm.*可能需要支撑/);
+    }
+    assert.equal(r.supportParts.filter((part) => part.type === 'drawer').length, 0);
+    assert.equal(
+      r.boxes[0].frame.height,
+      327,
+      'do not silently shorten the geometry to make it fit',
+    );
+    assert.deepEqual(r.placements, layout, 'orientation must not modify the front-grid design');
+  }
+});
+test('normal drawers and sleeves retain their intended bed contact whenever possible', () => {
+  const r = design({}, [{ id: 1, col: 0, row: 0, cols: 3, rows: 2 }]);
+  assert.equal(r.warnings.length, 0);
+  for (const plate of r.plates)
+    for (const { orientation } of plate.items) {
+      assert.equal(orientation.axes[2], 2);
+      assert.equal(orientation.needsSupport, false);
+    }
+});
+test('six poses are proper rotations with nonnegative bounds and preserved volume', () => {
+  const part = design(cfg, layout).boxes[0].frame,
+    mesh = partMesh(part);
+  for (const axes of PRINT_ORIENTATIONS) {
+    const item = { x: 4, y: 5, orientation: { axes } },
+      matrix = printTransform(part, item);
+    const determinant =
+      matrix[0] * (matrix[4] * matrix[8] - matrix[5] * matrix[7]) -
+      matrix[1] * (matrix[3] * matrix[8] - matrix[5] * matrix[6]) +
+      matrix[2] * (matrix[3] * matrix[7] - matrix[4] * matrix[6]);
+    assert.equal(determinant, 1, 'never mirror a closed mesh');
+    const vertices = mesh.vertices.map((v) => transformed(v, matrix));
+    for (let i = 0; i < vertices.length; i++) {
+      const p = pointOnPlate(part, mesh.vertices[i], item),
+        q = orientPoint(part, mesh.vertices[i], axes);
+      for (let axis = 0; axis < 3; axis++) {
+        near(vertices[i][axis], p[axis]);
+        near(vertices[i][axis], q[axis] + [4, 5, 0][axis]);
+      }
+    }
+    const dims = dimensionsFor(part, axes);
+    for (let axis = 0; axis < 3; axis++) {
+      near(Math.min(...vertices.map((v) => v[axis])), [4, 5, 0][axis]);
+      near(Math.max(...vertices.map((v) => v[axis])), dims[axis] + [4, 5, 0][axis]);
+    }
+    near(meshVolume({ ...mesh, vertices }), meshVolume(mesh), 1e-3);
+  }
+});
+test('packing and exported 3MF use the same feasible XYZ poses, including side poses', () => {
+  const r = design({ ...cfg, margin: 1.5 }, layout),
+    ids: string[] = [];
+  let sidePoses = 0;
+  for (const plate of r.plates) {
+    const xml = modelXML(plate.items),
+      matrices = [...xml.matchAll(/transform="([^"]+)"/g)].map((m) => m[1].split(' ').map(Number));
+    assert.equal(matrices.length, plate.items.length);
+    plate.items.forEach((item, index) => {
+      ids.push(item.part.id);
+      if (item.orientation.needsSupport) sidePoses++;
+      assert.deepEqual(item.part.print.dimensions, item.orientation.dimensions);
+      assert.deepEqual(item.part.print.axes, item.orientation.axes);
+      const points = partMesh(item.part).vertices.map((v) => transformed(v, matrices[index]));
+      for (const point of points) {
+        assert.ok(
+          point[0] >= r.cfg.margin - 1e-4 && point[0] <= r.cfg.bedWidth - r.cfg.margin + 1e-4,
+        );
+        assert.ok(
+          point[1] >= r.cfg.margin - 1e-4 && point[1] <= r.cfg.bedDepth - r.cfg.margin + 1e-4,
+        );
+        assert.ok(point[2] >= -1e-4 && point[2] <= r.cfg.bedHeight + 1e-4);
+      }
+    });
+  }
+  assert.equal(new Set(ids).size, 14);
+  assert.equal(sidePoses, 7);
+});
+test('warning-only layouts export support reminders and actual orientations', () => {
+  const r = design({ ...cfg, margin: 1.5 }, layout),
+    bytes = printBundle(r);
+  const manifest = readJSON(entry(readZip(bytes), 'assembly.json'));
+  assert.deepEqual(manifest.availablePrintXYZ, [330, 320, 325]);
+  assert.deepEqual(manifest.preferredPrintXYZ, [327, 317, 325]);
+  assert.equal(
+    records(manifest.plates)
+      .flatMap((p) => records(p.placements))
+      .filter((item) => item.checkSupports).length,
+    7,
+  );
+  assert.match(new TextDecoder().decode(entry(readZip(bytes), 'README.txt')), /7 个侧放零件/);
+});
+test('genuinely oversized parts remain errors rather than support warnings', () => {
+  const r = design({ ...cfg, depth: 400, margin: 0 }, layout);
+  assert.equal(r.issues.length, 14);
+  assert.equal(r.warnings.length, 0);
+  assert.equal(r.printable, false);
+  assert.throws(() => printBundle(r), /打印范围/);
+});
+
+test('relaxed-margin plates and serialized geometry stay inside the actual machine, with no overlap', () => {
+  for (const margin of [3, 10, 20]) {
+    const r = design({ ...cfg, margin }, layout);
+    assert.ok(r.printable);
+    const ids: string[] = [];
+    for (const plate of r.plates) {
+      const matrices = [...modelXML(plate.items).matchAll(/transform="([^"]+)"/g)].map((m) =>
+        m[1].split(' ').map(Number),
+      );
+      plate.items.forEach((item, index) => {
+        ids.push(item.part.id);
+        const points = partMesh(item.part).vertices.map((v) => transformed(v, matrices[index]));
+        for (const p of points)
+          for (let axis = 0; axis < 3; axis++)
+            assert.ok(p[axis] >= -1e-4 && p[axis] <= [330, 320, 325][axis] + 1e-4);
+        assert.deepEqual(item.part.print.dimensions, item.orientation.dimensions);
+        assert.equal(
+          item.part.print.usesReservedMargin,
+          Object.values(item.edgeClearances).some((gap) => gap < margin - 1e-6),
+        );
+        for (const other of plate.items)
+          if (other !== item)
+            assert.ok(
+              item.x + item.width + 4.999 <= other.x ||
+                other.x + other.width + 4.999 <= item.x ||
+                item.y + item.depth + 4.999 <= other.y ||
+                other.y + other.depth + 4.999 <= item.y,
+            );
+      });
+    }
+    assert.equal(new Set(ids).size, 14);
+    assert.equal(ids.length, 14);
+  }
+});
+test('ordinary parts preserve full margins even when reusing a tighter plate', () => {
+  const config = design(cfg).cfg;
+  const large: DrawerPart = {
+    id: 'large',
+    boxId: 1,
+    label: '长盒',
+    type: 'drawer',
+    width: 327,
+    depth: 100,
+    height: 40,
+    wall: 1.8,
+    base: 1.6,
+    radius: 1,
+  };
+  const small: DrawerPart = {
+    ...large,
+    id: 'small',
+    boxId: 2,
+    label: '小盒',
+    width: 50,
+    depth: 40,
+    height: 30,
+  };
+  const plates = packPlates([large, small], config);
+  assert.equal(plates.length, 1);
+  const a = plates[0].items.find((item) => item.part.id === 'large'),
+    b = plates[0].items.find((item) => item.part.id === 'small');
+  assert.ok(a);
+  assert.ok(b);
+  near(a.x, 1.5);
+  assert.equal(a.usesReservedMargin, true);
+  assert.equal(b.usesReservedMargin, false);
+  for (const gap of Object.values(b.edgeClearances)) assert.ok(gap >= 3 - 1e-6);
+});
+test('plate packing fills from the back edge and leaves spare space at the front', () => {
+  const large: DrawerPart = {
+    id: 'large',
+    boxId: 1,
+    label: '大盒',
+    type: 'drawer',
+    width: 90,
+    depth: 55,
+    height: 35,
+    wall: 3.2,
+    base: 3.2,
+    radius: 4,
+  };
+  const nextRow = { ...large, id: 'next-row', boxId: 2, width: 80, depth: 30 };
+  const beside = { ...large, id: 'beside', boxId: 3, width: 40, depth: 45 };
+
+  for (const options of [{}, { margin: 3 }]) {
+    const { cfg } = design({ bedWidth: 150, bedDepth: 120, ...options });
+    const plates = packPlates([large, nextRow, beside], cfg);
+    assert.equal(plates.length, 1);
+    const items = plates[0].items;
+    const first = items.find((item) => item.part === large);
+    const below = items.find((item) => item.part === nextRow);
+    const right = items.find((item) => item.part === beside);
+    assert.ok(first && below && right);
+
+    near(first.y + first.depth, cfg.bedDepth - cfg.margin);
+    near(right.y + right.depth, first.y + first.depth);
+    near(right.x, first.x + first.width + 5);
+    near(below.y + below.depth + 5, first.y);
+    near(Math.min(...items.map((item) => item.y)), 30 - cfg.margin);
+    for (const item of items) near(item.edgeClearances.front, item.y);
+  }
+});
+test('export records actual edge clearance and the unchanged requested margin', () => {
+  const r = design(cfg, layout),
+    bytes = printBundle(r);
+  const manifest = readJSON(entry(readZip(bytes), 'assembly.json'));
+  assert.equal(record(manifest.settings).margin, 3);
+  assert.deepEqual(manifest.availablePrintXYZ, [330, 320, 325]);
+  assert.deepEqual(manifest.preferredPrintXYZ, [324, 314, 325]);
+  const placed = records(manifest.plates).flatMap((plate) => records(plate.placements));
+  assert.equal(placed.length, 14);
+  assert.equal(placed.filter((item) => item.checkClearance).length, 14);
+  assert.equal(placed.filter((item) => item.checkSupports).length, 7);
+  for (const item of placed)
+    for (const gap of Object.values(record(item.edgeClearances))) {
+      assert.ok(typeof gap === 'number');
+      assert.ok(gap >= -1e-6);
+    }
+});
+
+test('multi-plate 3MF assigns each mesh once and preserves every local print transform', () => {
+  for (const margin of [1.5, 3]) {
+    const r = design({ ...cfg, margin }, layout),
+      before = structuredClone(r);
+    const files = readZip(project3MF(r)),
+      decode = (name: string) => new TextDecoder().decode(entry(files, name));
+    const model = decode('3D/3dmodel.model'),
+      config = decode('Metadata/model_settings.config');
+    const objects = [...model.matchAll(/<object id="(\d+)"[^>]*>([\s\S]*?)<\/object>/g)];
+    const build = [...model.matchAll(/<item objectid="(\d+)" transform="([^"]+)"/g)];
+    const plates = [...config.matchAll(/<plate>([\s\S]*?)<\/plate>/g)];
+    assert.ok(r.plates.length > 1);
+    assert.equal(plates.length, r.plates.length);
+    assert.equal(objects.length, r.parts.length);
+    assert.equal(build.length, r.parts.length);
+    assert.match(model, /Application">BambuStudio-.*Boxfinity/);
+    const ids: number[] = [];
+    const columns = Math.ceil(Math.sqrt(plates.length));
+    let index = 0;
+    plates.forEach(([, plate], plateIndex) => {
+      assert.match(plate, new RegExp(`key="plater_id" value="${plateIndex + 1}"`));
+      const members = [...plate.matchAll(/<model_instance>([\s\S]*?)<\/model_instance>/g)];
+      assert.equal(members.length, r.plates[plateIndex].items.length);
+      members.forEach(([, member], localIndex) => {
+        const item = r.plates[plateIndex].items[localIndex];
+        const memberId = member.match(/key="object_id" value="(\d+)"/);
+        assert.ok(memberId);
+        const id = Number(memberId[1]);
+        ids.push(id);
+        assert.equal(id, Number(objects[index][1]));
+        assert.equal(id, Number(build[index][1]));
+        assert.match(member, /key="instance_id" value="0"/);
+        // Metadata must reference the actual mesh, otherwise the slicer can drop the volume.
+        assert.match(config, new RegExp(`<part id="${id}" subtype="normal_part">`));
+        const matrix = build[index][2].split(' ').map(Number);
+        const origin = [
+          (plateIndex % columns) * r.cfg.bedWidth * 1.2,
+          -Math.floor(plateIndex / columns) * r.cfg.bedDepth * 1.2,
+          0,
+        ];
+        const local = [...matrix];
+        local[9] -= origin[0];
+        local[10] -= origin[1];
+        printTransform(item.part, item).forEach((value, axis) => near(local[axis], value));
+        const vertices = [
+          ...objects[index][2].matchAll(/<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"/g),
+        ].map(([, x, y, z]): Vec3 => [Number(x), Number(y), Number(z)]);
+        assert.equal(vertices.length, partMesh(item.part).vertices.length);
+        vertices.forEach((vertex) => {
+          const actual = transformed(vertex, local);
+          const expected = pointOnPlate(item.part, vertex, item);
+          actual.forEach((value, axis) => near(value, expected[axis]));
+          actual.forEach((value, axis) =>
+            assert.ok(
+              value >= -1e-4 &&
+                value <= [r.cfg.bedWidth, r.cfg.bedDepth, r.cfg.bedHeight][axis] + 1e-4,
+            ),
+          );
+        });
+        index++;
+      });
+    });
+    assert.equal(new Set(ids).size, r.parts.length);
+    assert.deepEqual(r, before, 'export must not change preview geometry or plate positions');
+    assert.match(config, /侧放，检查支撑/);
+    if (margin === 3) assert.match(config, /占用建议边距/);
+    const project = readJSON(entry(files, 'Metadata/project_settings.config'));
+    assert.deepEqual(project.printable_area, ['0x0', '330x0', '330x320', '0x320']);
+    assert.equal(project.printable_height, '325');
+    assert.equal(project.printer_settings_id, 'Bambu Lab X1 Carbon 0.4 nozzle');
+    assert.deepEqual(project.nozzle_diameter, ['0.4']);
+    assert.ok(!('machine_start_gcode' in project));
+  }
+});
+
+test('selected machines inherit their own system profiles, including models with identical XYZ', () => {
+  for (const [id, machine, process, filament, nozzles] of [
+    ['bambu-a1', 'A1', 'A1', 'Generic PETG @BBL A1', 1],
+    ['bambu-p1s', 'P1S', 'X1C', 'Generic PETG', 1],
+    ['bambu-p3c', 'P3C', 'P3C', 'Generic PETG @BBL P3C', 1],
+    ['bambu-h3c', 'H3C', 'H3C', 'Generic PETG @BBL H3C', 1],
+    ['bambu-h2c-right', 'H2C', 'H2C', 'Generic PETG @BBL H2C 0.4 nozzle', 2],
+  ] as const) {
+    const preset = printerPreset(id);
+    assert.ok(preset);
+    const result = design(preset.volume, [{ id: 7, col: 0, row: 0, cols: 1, rows: 1 }]);
+    const files = readZip(project3MF(result, id));
+    const project = readJSON(entry(files, 'Metadata/project_settings.config'));
+    assert.equal(project.printer_settings_id, `Bambu Lab ${machine} 0.4 nozzle`);
+    assert.equal(project.print_settings_id, `0.20mm Standard @BBL ${process}`);
+    assert.deepEqual(project.filament_settings_id, [filament]);
+    assert.deepEqual(
+      project.nozzle_diameter,
+      Array.from({ length: nozzles }, () => '0.4'),
+    );
+    assert.deepEqual(project.inherits_group, [
+      project.print_settings_id,
+      filament,
+      project.printer_settings_id,
+    ]);
+    assert.deepEqual(project.different_settings_to_system, [
+      '',
+      '',
+      'printable_area;printable_height',
+    ]);
+    assert.ok(Object.keys(project).every((key) => !key.includes('gcode')));
+    const manifest = readJSON(entry(files, 'Metadata/assembly.json'));
+    assert.equal(manifest.printerPresetId, id);
+    assert.equal(record(manifest.slicerPreset).fallback, false);
+    const bundle = readZip(printBundle(result, id));
+    assert.deepEqual(entry(bundle, 'boxfinity.3mf'), project3MF(result, id));
+    assert.match(
+      new TextDecoder().decode(entry(bundle, 'README.txt')),
+      new RegExp(`Bambu Lab ${machine}`),
+    );
+  }
+});
+
+test('custom, stale and unsupported selections use a real fallback without changing XYZ or geometry', () => {
+  const result = design(cfg, layout);
+  const before = structuredClone(result);
+  const baseline = readZip(project3MF(result));
+  for (const id of [undefined, 'unknown', 'bambu-a1', 'snapmaker-u1']) {
+    const files = readZip(project3MF(result, id));
+    const project = readJSON(entry(files, 'Metadata/project_settings.config'));
+    assert.equal(project.printer_settings_id, 'Bambu Lab X1 Carbon 0.4 nozzle');
+    assert.deepEqual(project.printable_area, ['0x0', '330x0', '330x320', '0x320']);
+    assert.equal(project.printable_height, '325');
+    assert.deepEqual(entry(files, '3D/3dmodel.model'), entry(baseline, '3D/3dmodel.model'));
+    assert.deepEqual(
+      entry(files, 'Metadata/model_settings.config'),
+      entry(baseline, 'Metadata/model_settings.config'),
+    );
+    assert.equal(
+      record(readJSON(entry(files, 'Metadata/assembly.json')).slicerPreset).fallback,
+      true,
+    );
+  }
+  const u1 = printerPreset('snapmaker-u1');
+  assert.ok(u1);
+  const unsupported = design(u1.volume, [{ id: 1, col: 0, row: 0, cols: 1, rows: 1 }]);
+  const files = readZip(printBundle(unsupported, u1.id));
+  const manifest = readJSON(entry(files, 'assembly.json'));
+  assert.equal(manifest.printerPresetId, u1.id);
+  assert.equal(record(manifest.slicerPreset).fallback, true);
+  assert.match(new TextDecoder().decode(entry(files, 'README.txt')), /兼容兜底.*X1 Carbon/);
+  assert.deepEqual(result, before);
+});
+
+test('single-plate projects and selected groups keep all their parts', () => {
+  for (const options of [{}, { bedWidth: 1000, bedDepth: 1000, bedHeight: 1000 }]) {
+    const r = design(options, [{ id: 7, col: 0, row: 0, cols: 1, rows: 1 }]);
+    const files = readZip(project3MF(r));
+    const manifest = readJSON(entry(files, 'Metadata/assembly.json'));
+    assert.deepEqual(
+      records(manifest.boxes).map((box) => box.id),
+      [7],
+    );
+    assert.deepEqual(
+      records(manifest.plates)
+        .flatMap((plate) => array(plate.parts))
+        .sort(),
+      ['drawer-7', 'frame-7'],
+    );
+    if (options.bedWidth) assert.equal(r.plates.length, 1);
+    const model = new TextDecoder().decode(entry(files, '3D/3dmodel.model'));
+    assert.equal([...model.matchAll(/<item /g)].length, 2);
+  }
+});
+
+test('multi-plate export rejects empty and oversized designs while warning-only designs export', () => {
+  assert.throws(() => project3MF(design()), /绘制盒子/);
+  assert.throws(() => project3MF(design({ ...cfg, depth: 400 }, layout)), /打印范围/);
+  assert.doesNotThrow(() => project3MF(design(cfg, layout)));
+});
+
+test('projects over the slicer plate limit retain ZIP and single-plate exports', () => {
+  const r = design({}, [{ id: 1, col: 0, row: 0, cols: 1, rows: 1 }]);
+  r.plates = Array.from({ length: MAX_PROJECT_PLATES + 1 }, (_, i) => ({
+    ...r.plates[0],
+    id: i + 1,
+  }));
+  assert.throws(() => project3MF(r), /最多支持 36 盘/);
+  const files = readZip(printBundle(r));
+  const manifest = readJSON(entry(files, 'assembly.json'));
+  assert.equal(records(manifest.plates).length, MAX_PROJECT_PLATES + 1);
+  assert.ok(!manifest.projectFile);
+  records(manifest.plates).forEach((plate) => {
+    assert.ok(typeof plate.file === 'string');
+    assert.ok(entry(files, plate.file).length > 0);
+  });
+  assert.match(new TextDecoder().decode(entry(files, 'README.txt')), /仅包含单盘/);
+});
